@@ -1,0 +1,8 @@
+#!/bin/bash
+
+bindgen \
+    /usr/include/pcre2.h \
+    --whitelist-function '^pcre2_.*' \
+    --whitelist-type '^pcre2_.*' \
+    --whitelist-var '^PCRE2_.*' \
+    -- -DPCRE2_CODE_UNIT_WIDTH=8 > src/bindings.rs

@@ -1,0 +1,5 @@
+/target
+/pcre2-sys/target
+**/*.rs.bk
+Cargo.lock
+tags
