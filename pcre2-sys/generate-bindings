@@ -1,8 +1,22 @@
 #!/bin/bash
 
+: "${PCRE2SYS_HEADER:=/usr/include/pcre2.h}"
+: "${PCRE2SYS_BINDINGS:=./src/bindings.rs}"
+
+if ! command -V bindgen > /dev/null 2>&1; then
+    echo "bindgen must be installed" >&2
+    echo "to install: cargo install bindgen" >&2
+    exit 1
+fi
+if ! [ -f "$PCRE2SYS_HEADER" ]; then
+    echo "PCRE2 header file at $PCRE2SYS_HEADER does not exist" >&2
+    echo "Use the PCRE2SYS_HEADER environment variable to override path" >&2
+    exit 1
+fi
+
 bindgen \
-    /usr/include/pcre2.h \
+    "$PCRE2SYS_HEADER" \
     --whitelist-function '^pcre2_.*' \
     --whitelist-type '^pcre2_.*' \
     --whitelist-var '^PCRE2_.*' \
-    -- -DPCRE2_CODE_UNIT_WIDTH=8 > src/bindings.rs
+    -- -DPCRE2_CODE_UNIT_WIDTH=8 > "$PCRE2SYS_BINDINGS"
