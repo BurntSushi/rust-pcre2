@@ -69,6 +69,14 @@ fn main() {
         return;
     }
 
+    // For a static build, make sure our PCRE2 submodule has been loaded.
+    if !Path::new("pcre2/.git").exists() {
+        Command::new("git")
+            .args(&["submodule", "update", "--init"])
+            .status()
+            .unwrap();
+    }
+
     // Set some config options. We mostly just use the default values. We do
     // this in lieu of patching config.h since it's easier.
     let mut builder = cc::Build::new();
