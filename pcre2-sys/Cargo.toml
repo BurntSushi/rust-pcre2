@@ -9,3 +9,10 @@ repository = "https://github.com/BurntSushi/rust-pcre2"
 readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit"]
 license = "Unlicense/MIT"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+cc = "1"
+pkg-config = "0.3.13"

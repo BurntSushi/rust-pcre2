@@ -273,10 +273,10 @@ pub const PCRE2_SIZE_MAX: i32 = -1;
 pub const PCRE2_CALLOUT_STARTMATCH: u32 = 1;
 pub const PCRE2_CALLOUT_BACKTRACK: u32 = 2;
 pub const PCRE2_LOCAL_WIDTH: u32 = 8;
-pub type __uint8_t = ::std::os::raw::c_uchar;
-pub type __uint16_t = ::std::os::raw::c_ushort;
-pub type __int32_t = ::std::os::raw::c_int;
-pub type __uint32_t = ::std::os::raw::c_uint;
+pub type __uint8_t = ::libc::c_uchar;
+pub type __uint16_t = ::libc::c_ushort;
+pub type __int32_t = ::libc::c_int;
+pub type __uint32_t = ::libc::c_uint;
 pub type PCRE2_UCHAR8 = u8;
 pub type PCRE2_UCHAR16 = u16;
 pub type PCRE2_UCHAR32 = u32;
@@ -326,7 +326,7 @@ pub struct pcre2_real_jit_stack_8 {
 }
 pub type pcre2_jit_stack_8 = pcre2_real_jit_stack_8;
 pub type pcre2_jit_callback_8 = ::std::option::Option<
-    unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void) -> *mut pcre2_jit_stack_8,
+    unsafe extern "C" fn(arg1: *mut ::libc::c_void) -> *mut pcre2_jit_stack_8,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -664,7 +664,7 @@ fn bindgen_test_layout_pcre2_callout_enumerate_block_8() {
     );
 }
 extern "C" {
-    pub fn pcre2_config_8(arg1: u32, arg2: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int;
+    pub fn pcre2_config_8(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_general_context_copy_8(
@@ -674,16 +674,12 @@ extern "C" {
 extern "C" {
     pub fn pcre2_general_context_create_8(
         arg1: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     ) -> *mut pcre2_general_context_8;
 }
 extern "C" {
@@ -703,47 +699,43 @@ extern "C" {
     pub fn pcre2_compile_context_free_8(arg1: *mut pcre2_compile_context_8);
 }
 extern "C" {
-    pub fn pcre2_set_bsr_8(arg1: *mut pcre2_compile_context_8, arg2: u32) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_bsr_8(arg1: *mut pcre2_compile_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_character_tables_8(
         arg1: *mut pcre2_compile_context_8,
-        arg2: *const ::std::os::raw::c_uchar,
-    ) -> ::std::os::raw::c_int;
+        arg2: *const ::libc::c_uchar,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_extra_options_8(
         arg1: *mut pcre2_compile_context_8,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_max_pattern_length_8(
         arg1: *mut pcre2_compile_context_8,
         arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_newline_8(
-        arg1: *mut pcre2_compile_context_8,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_newline_8(arg1: *mut pcre2_compile_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_parens_nest_limit_8(
         arg1: *mut pcre2_compile_context_8,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_recursion_guard_8(
         arg1: *mut pcre2_compile_context_8,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: u32, arg2: *mut ::std::os::raw::c_void)
-                -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_convert_context_copy_8(
@@ -759,16 +751,13 @@ extern "C" {
     pub fn pcre2_convert_context_free_8(arg1: *mut pcre2_convert_context_8);
 }
 extern "C" {
-    pub fn pcre2_set_glob_escape_8(
-        arg1: *mut pcre2_convert_context_8,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_glob_escape_8(arg1: *mut pcre2_convert_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_glob_separator_8(
         arg1: *mut pcre2_convert_context_8,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_pattern_convert_8(
@@ -778,7 +767,7 @@ extern "C" {
         arg4: *mut *mut PCRE2_UCHAR8,
         arg5: *mut usize,
         arg6: *mut pcre2_convert_context_8,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_converted_pattern_free_8(arg1: *mut PCRE2_UCHAR8);
@@ -800,66 +789,49 @@ extern "C" {
     pub fn pcre2_set_callout_8(
         arg1: *mut pcre2_match_context_8,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut pcre2_callout_block_8,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: *mut pcre2_callout_block_8, arg2: *mut ::libc::c_void)
+                -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_depth_limit_8(
-        arg1: *mut pcre2_match_context_8,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_depth_limit_8(arg1: *mut pcre2_match_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_heap_limit_8(
-        arg1: *mut pcre2_match_context_8,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_heap_limit_8(arg1: *mut pcre2_match_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_match_limit_8(
-        arg1: *mut pcre2_match_context_8,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_match_limit_8(arg1: *mut pcre2_match_context_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_offset_limit_8(
-        arg1: *mut pcre2_match_context_8,
-        arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_offset_limit_8(arg1: *mut pcre2_match_context_8, arg2: usize)
+        -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_limit_8(
         arg1: *mut pcre2_match_context_8,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_memory_management_8(
         arg1: *mut pcre2_match_context_8,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg3: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg4: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg4: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_compile_8(
         arg1: PCRE2_SPTR8,
         arg2: usize,
         arg3: u32,
-        arg4: *mut ::std::os::raw::c_int,
+        arg4: *mut ::libc::c_int,
         arg5: *mut usize,
         arg6: *mut pcre2_compile_context_8,
     ) -> *mut pcre2_code_8;
@@ -877,8 +849,8 @@ extern "C" {
     pub fn pcre2_pattern_info_8(
         arg1: *const pcre2_code_8,
         arg2: u32,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_callout_enumerate_8(
@@ -886,11 +858,11 @@ extern "C" {
         arg2: ::std::option::Option<
             unsafe extern "C" fn(
                 arg1: *mut pcre2_callout_enumerate_block_8,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+                arg2: *mut ::libc::c_void,
+            ) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_create_8(
@@ -913,9 +885,9 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_8,
         arg7: *mut pcre2_match_context_8,
-        arg8: *mut ::std::os::raw::c_int,
+        arg8: *mut ::libc::c_int,
         arg9: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_8(
@@ -926,7 +898,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_8,
         arg7: *mut pcre2_match_context_8,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_free_8(arg1: *mut pcre2_match_data_8);
@@ -949,7 +921,7 @@ extern "C" {
         arg2: PCRE2_SPTR8,
         arg3: *mut PCRE2_UCHAR8,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_copy_bynumber_8(
@@ -957,7 +929,7 @@ extern "C" {
         arg2: u32,
         arg3: *mut PCRE2_UCHAR8,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_free_8(arg1: *mut PCRE2_UCHAR8);
@@ -968,7 +940,7 @@ extern "C" {
         arg2: PCRE2_SPTR8,
         arg3: *mut *mut PCRE2_UCHAR8,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_get_bynumber_8(
@@ -976,21 +948,21 @@ extern "C" {
         arg2: u32,
         arg3: *mut *mut PCRE2_UCHAR8,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_byname_8(
         arg1: *mut pcre2_match_data_8,
         arg2: PCRE2_SPTR8,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_bynumber_8(
         arg1: *mut pcre2_match_data_8,
         arg2: u32,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_nametable_scan_8(
@@ -998,13 +970,13 @@ extern "C" {
         arg2: PCRE2_SPTR8,
         arg3: *mut PCRE2_SPTR8,
         arg4: *mut PCRE2_SPTR8,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_number_from_name_8(
         arg1: *const pcre2_code_8,
         arg2: PCRE2_SPTR8,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_list_free_8(arg1: *mut PCRE2_SPTR8);
@@ -1014,7 +986,7 @@ extern "C" {
         arg1: *mut pcre2_match_data_8,
         arg2: *mut *mut *mut PCRE2_UCHAR8,
         arg3: *mut *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_serialize_encode_8(
@@ -1052,10 +1024,10 @@ extern "C" {
         arg9: usize,
         arg10: *mut PCRE2_UCHAR8,
         arg11: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_jit_compile_8(arg1: *mut pcre2_code_8, arg2: u32) -> ::std::os::raw::c_int;
+    pub fn pcre2_jit_compile_8(arg1: *mut pcre2_code_8, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_match_8(
@@ -1066,7 +1038,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_8,
         arg7: *mut pcre2_match_context_8,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_free_unused_memory_8(arg1: *mut pcre2_general_context_8);
@@ -1082,7 +1054,7 @@ extern "C" {
     pub fn pcre2_jit_stack_assign_8(
         arg1: *mut pcre2_match_context_8,
         arg2: pcre2_jit_callback_8,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     );
 }
 extern "C" {
@@ -1090,10 +1062,10 @@ extern "C" {
 }
 extern "C" {
     pub fn pcre2_get_error_message_8(
-        arg1: ::std::os::raw::c_int,
+        arg1: ::libc::c_int,
         arg2: *mut PCRE2_UCHAR8,
         arg3: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_maketables_8(arg1: *mut pcre2_general_context_8) -> *const u8;
@@ -1141,7 +1113,7 @@ pub struct pcre2_real_jit_stack_16 {
 }
 pub type pcre2_jit_stack_16 = pcre2_real_jit_stack_16;
 pub type pcre2_jit_callback_16 = ::std::option::Option<
-    unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void) -> *mut pcre2_jit_stack_16,
+    unsafe extern "C" fn(arg1: *mut ::libc::c_void) -> *mut pcre2_jit_stack_16,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1483,7 +1455,7 @@ fn bindgen_test_layout_pcre2_callout_enumerate_block_16() {
     );
 }
 extern "C" {
-    pub fn pcre2_config_16(arg1: u32, arg2: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int;
+    pub fn pcre2_config_16(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_general_context_copy_16(
@@ -1493,16 +1465,12 @@ extern "C" {
 extern "C" {
     pub fn pcre2_general_context_create_16(
         arg1: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     ) -> *mut pcre2_general_context_16;
 }
 extern "C" {
@@ -1522,50 +1490,43 @@ extern "C" {
     pub fn pcre2_compile_context_free_16(arg1: *mut pcre2_compile_context_16);
 }
 extern "C" {
-    pub fn pcre2_set_bsr_16(
-        arg1: *mut pcre2_compile_context_16,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_bsr_16(arg1: *mut pcre2_compile_context_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_character_tables_16(
         arg1: *mut pcre2_compile_context_16,
-        arg2: *const ::std::os::raw::c_uchar,
-    ) -> ::std::os::raw::c_int;
+        arg2: *const ::libc::c_uchar,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_extra_options_16(
         arg1: *mut pcre2_compile_context_16,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_max_pattern_length_16(
         arg1: *mut pcre2_compile_context_16,
         arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_newline_16(
-        arg1: *mut pcre2_compile_context_16,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_newline_16(arg1: *mut pcre2_compile_context_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_parens_nest_limit_16(
         arg1: *mut pcre2_compile_context_16,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_recursion_guard_16(
         arg1: *mut pcre2_compile_context_16,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: u32, arg2: *mut ::std::os::raw::c_void)
-                -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_convert_context_copy_16(
@@ -1584,13 +1545,13 @@ extern "C" {
     pub fn pcre2_set_glob_escape_16(
         arg1: *mut pcre2_convert_context_16,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_glob_separator_16(
         arg1: *mut pcre2_convert_context_16,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_pattern_convert_16(
@@ -1600,7 +1561,7 @@ extern "C" {
         arg4: *mut *mut PCRE2_UCHAR16,
         arg5: *mut usize,
         arg6: *mut pcre2_convert_context_16,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_converted_pattern_free_16(arg1: *mut PCRE2_UCHAR16);
@@ -1622,66 +1583,51 @@ extern "C" {
     pub fn pcre2_set_callout_16(
         arg1: *mut pcre2_match_context_16,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut pcre2_callout_block_16,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: *mut pcre2_callout_block_16, arg2: *mut ::libc::c_void)
+                -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_depth_limit_16(
-        arg1: *mut pcre2_match_context_16,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_depth_limit_16(arg1: *mut pcre2_match_context_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_heap_limit_16(
-        arg1: *mut pcre2_match_context_16,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_heap_limit_16(arg1: *mut pcre2_match_context_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_match_limit_16(
-        arg1: *mut pcre2_match_context_16,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_match_limit_16(arg1: *mut pcre2_match_context_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_offset_limit_16(
         arg1: *mut pcre2_match_context_16,
         arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_limit_16(
         arg1: *mut pcre2_match_context_16,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_memory_management_16(
         arg1: *mut pcre2_match_context_16,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg3: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg4: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg4: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_compile_16(
         arg1: PCRE2_SPTR16,
         arg2: usize,
         arg3: u32,
-        arg4: *mut ::std::os::raw::c_int,
+        arg4: *mut ::libc::c_int,
         arg5: *mut usize,
         arg6: *mut pcre2_compile_context_16,
     ) -> *mut pcre2_code_16;
@@ -1699,8 +1645,8 @@ extern "C" {
     pub fn pcre2_pattern_info_16(
         arg1: *const pcre2_code_16,
         arg2: u32,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_callout_enumerate_16(
@@ -1708,11 +1654,11 @@ extern "C" {
         arg2: ::std::option::Option<
             unsafe extern "C" fn(
                 arg1: *mut pcre2_callout_enumerate_block_16,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+                arg2: *mut ::libc::c_void,
+            ) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_create_16(
@@ -1735,9 +1681,9 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_16,
         arg7: *mut pcre2_match_context_16,
-        arg8: *mut ::std::os::raw::c_int,
+        arg8: *mut ::libc::c_int,
         arg9: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_16(
@@ -1748,7 +1694,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_16,
         arg7: *mut pcre2_match_context_16,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_free_16(arg1: *mut pcre2_match_data_16);
@@ -1771,7 +1717,7 @@ extern "C" {
         arg2: PCRE2_SPTR16,
         arg3: *mut PCRE2_UCHAR16,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_copy_bynumber_16(
@@ -1779,7 +1725,7 @@ extern "C" {
         arg2: u32,
         arg3: *mut PCRE2_UCHAR16,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_free_16(arg1: *mut PCRE2_UCHAR16);
@@ -1790,7 +1736,7 @@ extern "C" {
         arg2: PCRE2_SPTR16,
         arg3: *mut *mut PCRE2_UCHAR16,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_get_bynumber_16(
@@ -1798,21 +1744,21 @@ extern "C" {
         arg2: u32,
         arg3: *mut *mut PCRE2_UCHAR16,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_byname_16(
         arg1: *mut pcre2_match_data_16,
         arg2: PCRE2_SPTR16,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_bynumber_16(
         arg1: *mut pcre2_match_data_16,
         arg2: u32,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_nametable_scan_16(
@@ -1820,13 +1766,13 @@ extern "C" {
         arg2: PCRE2_SPTR16,
         arg3: *mut PCRE2_SPTR16,
         arg4: *mut PCRE2_SPTR16,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_number_from_name_16(
         arg1: *const pcre2_code_16,
         arg2: PCRE2_SPTR16,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_list_free_16(arg1: *mut PCRE2_SPTR16);
@@ -1836,7 +1782,7 @@ extern "C" {
         arg1: *mut pcre2_match_data_16,
         arg2: *mut *mut *mut PCRE2_UCHAR16,
         arg3: *mut *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_serialize_encode_16(
@@ -1874,10 +1820,10 @@ extern "C" {
         arg9: usize,
         arg10: *mut PCRE2_UCHAR16,
         arg11: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_jit_compile_16(arg1: *mut pcre2_code_16, arg2: u32) -> ::std::os::raw::c_int;
+    pub fn pcre2_jit_compile_16(arg1: *mut pcre2_code_16, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_match_16(
@@ -1888,7 +1834,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_16,
         arg7: *mut pcre2_match_context_16,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_free_unused_memory_16(arg1: *mut pcre2_general_context_16);
@@ -1904,7 +1850,7 @@ extern "C" {
     pub fn pcre2_jit_stack_assign_16(
         arg1: *mut pcre2_match_context_16,
         arg2: pcre2_jit_callback_16,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     );
 }
 extern "C" {
@@ -1912,10 +1858,10 @@ extern "C" {
 }
 extern "C" {
     pub fn pcre2_get_error_message_16(
-        arg1: ::std::os::raw::c_int,
+        arg1: ::libc::c_int,
         arg2: *mut PCRE2_UCHAR16,
         arg3: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_maketables_16(arg1: *mut pcre2_general_context_16) -> *const u8;
@@ -1963,7 +1909,7 @@ pub struct pcre2_real_jit_stack_32 {
 }
 pub type pcre2_jit_stack_32 = pcre2_real_jit_stack_32;
 pub type pcre2_jit_callback_32 = ::std::option::Option<
-    unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void) -> *mut pcre2_jit_stack_32,
+    unsafe extern "C" fn(arg1: *mut ::libc::c_void) -> *mut pcre2_jit_stack_32,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2305,7 +2251,7 @@ fn bindgen_test_layout_pcre2_callout_enumerate_block_32() {
     );
 }
 extern "C" {
-    pub fn pcre2_config_32(arg1: u32, arg2: *mut ::std::os::raw::c_void) -> ::std::os::raw::c_int;
+    pub fn pcre2_config_32(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_general_context_copy_32(
@@ -2315,16 +2261,12 @@ extern "C" {
 extern "C" {
     pub fn pcre2_general_context_create_32(
         arg1: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     ) -> *mut pcre2_general_context_32;
 }
 extern "C" {
@@ -2344,50 +2286,43 @@ extern "C" {
     pub fn pcre2_compile_context_free_32(arg1: *mut pcre2_compile_context_32);
 }
 extern "C" {
-    pub fn pcre2_set_bsr_32(
-        arg1: *mut pcre2_compile_context_32,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_bsr_32(arg1: *mut pcre2_compile_context_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_character_tables_32(
         arg1: *mut pcre2_compile_context_32,
-        arg2: *const ::std::os::raw::c_uchar,
-    ) -> ::std::os::raw::c_int;
+        arg2: *const ::libc::c_uchar,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_extra_options_32(
         arg1: *mut pcre2_compile_context_32,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_max_pattern_length_32(
         arg1: *mut pcre2_compile_context_32,
         arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_newline_32(
-        arg1: *mut pcre2_compile_context_32,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_newline_32(arg1: *mut pcre2_compile_context_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_parens_nest_limit_32(
         arg1: *mut pcre2_compile_context_32,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_compile_recursion_guard_32(
         arg1: *mut pcre2_compile_context_32,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: u32, arg2: *mut ::std::os::raw::c_void)
-                -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: u32, arg2: *mut ::libc::c_void) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_convert_context_copy_32(
@@ -2406,13 +2341,13 @@ extern "C" {
     pub fn pcre2_set_glob_escape_32(
         arg1: *mut pcre2_convert_context_32,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_glob_separator_32(
         arg1: *mut pcre2_convert_context_32,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_pattern_convert_32(
@@ -2422,7 +2357,7 @@ extern "C" {
         arg4: *mut *mut PCRE2_UCHAR32,
         arg5: *mut usize,
         arg6: *mut pcre2_convert_context_32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_converted_pattern_free_32(arg1: *mut PCRE2_UCHAR32);
@@ -2444,66 +2379,51 @@ extern "C" {
     pub fn pcre2_set_callout_32(
         arg1: *mut pcre2_match_context_32,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut pcre2_callout_block_32,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+            unsafe extern "C" fn(arg1: *mut pcre2_callout_block_32, arg2: *mut ::libc::c_void)
+                -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_depth_limit_32(
-        arg1: *mut pcre2_match_context_32,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_depth_limit_32(arg1: *mut pcre2_match_context_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_heap_limit_32(
-        arg1: *mut pcre2_match_context_32,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_heap_limit_32(arg1: *mut pcre2_match_context_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_set_match_limit_32(
-        arg1: *mut pcre2_match_context_32,
-        arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    pub fn pcre2_set_match_limit_32(arg1: *mut pcre2_match_context_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_offset_limit_32(
         arg1: *mut pcre2_match_context_32,
         arg2: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_limit_32(
         arg1: *mut pcre2_match_context_32,
         arg2: u32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_set_recursion_memory_management_32(
         arg1: *mut pcre2_match_context_32,
         arg2: ::std::option::Option<
-            unsafe extern "C" fn(arg1: usize, arg2: *mut ::std::os::raw::c_void)
-                -> *mut ::std::os::raw::c_void,
+            unsafe extern "C" fn(arg1: usize, arg2: *mut ::libc::c_void) -> *mut ::libc::c_void,
         >,
         arg3: ::std::option::Option<
-            unsafe extern "C" fn(
-                arg1: *mut ::std::os::raw::c_void,
-                arg2: *mut ::std::os::raw::c_void,
-            ),
+            unsafe extern "C" fn(arg1: *mut ::libc::c_void, arg2: *mut ::libc::c_void),
         >,
-        arg4: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg4: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_compile_32(
         arg1: PCRE2_SPTR32,
         arg2: usize,
         arg3: u32,
-        arg4: *mut ::std::os::raw::c_int,
+        arg4: *mut ::libc::c_int,
         arg5: *mut usize,
         arg6: *mut pcre2_compile_context_32,
     ) -> *mut pcre2_code_32;
@@ -2521,8 +2441,8 @@ extern "C" {
     pub fn pcre2_pattern_info_32(
         arg1: *const pcre2_code_32,
         arg2: u32,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_callout_enumerate_32(
@@ -2530,11 +2450,11 @@ extern "C" {
         arg2: ::std::option::Option<
             unsafe extern "C" fn(
                 arg1: *mut pcre2_callout_enumerate_block_32,
-                arg2: *mut ::std::os::raw::c_void,
-            ) -> ::std::os::raw::c_int,
+                arg2: *mut ::libc::c_void,
+            ) -> ::libc::c_int,
         >,
-        arg3: *mut ::std::os::raw::c_void,
-    ) -> ::std::os::raw::c_int;
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_create_32(
@@ -2557,9 +2477,9 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_32,
         arg7: *mut pcre2_match_context_32,
-        arg8: *mut ::std::os::raw::c_int,
+        arg8: *mut ::libc::c_int,
         arg9: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_32(
@@ -2570,7 +2490,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_32,
         arg7: *mut pcre2_match_context_32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_match_data_free_32(arg1: *mut pcre2_match_data_32);
@@ -2593,7 +2513,7 @@ extern "C" {
         arg2: PCRE2_SPTR32,
         arg3: *mut PCRE2_UCHAR32,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_copy_bynumber_32(
@@ -2601,7 +2521,7 @@ extern "C" {
         arg2: u32,
         arg3: *mut PCRE2_UCHAR32,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_free_32(arg1: *mut PCRE2_UCHAR32);
@@ -2612,7 +2532,7 @@ extern "C" {
         arg2: PCRE2_SPTR32,
         arg3: *mut *mut PCRE2_UCHAR32,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_get_bynumber_32(
@@ -2620,21 +2540,21 @@ extern "C" {
         arg2: u32,
         arg3: *mut *mut PCRE2_UCHAR32,
         arg4: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_byname_32(
         arg1: *mut pcre2_match_data_32,
         arg2: PCRE2_SPTR32,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_length_bynumber_32(
         arg1: *mut pcre2_match_data_32,
         arg2: u32,
         arg3: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_nametable_scan_32(
@@ -2642,13 +2562,13 @@ extern "C" {
         arg2: PCRE2_SPTR32,
         arg3: *mut PCRE2_SPTR32,
         arg4: *mut PCRE2_SPTR32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_number_from_name_32(
         arg1: *const pcre2_code_32,
         arg2: PCRE2_SPTR32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_substring_list_free_32(arg1: *mut PCRE2_SPTR32);
@@ -2658,7 +2578,7 @@ extern "C" {
         arg1: *mut pcre2_match_data_32,
         arg2: *mut *mut *mut PCRE2_UCHAR32,
         arg3: *mut *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_serialize_encode_32(
@@ -2696,10 +2616,10 @@ extern "C" {
         arg9: usize,
         arg10: *mut PCRE2_UCHAR32,
         arg11: *mut usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
-    pub fn pcre2_jit_compile_32(arg1: *mut pcre2_code_32, arg2: u32) -> ::std::os::raw::c_int;
+    pub fn pcre2_jit_compile_32(arg1: *mut pcre2_code_32, arg2: u32) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_match_32(
@@ -2710,7 +2630,7 @@ extern "C" {
         arg5: u32,
         arg6: *mut pcre2_match_data_32,
         arg7: *mut pcre2_match_context_32,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_jit_free_unused_memory_32(arg1: *mut pcre2_general_context_32);
@@ -2726,7 +2646,7 @@ extern "C" {
     pub fn pcre2_jit_stack_assign_32(
         arg1: *mut pcre2_match_context_32,
         arg2: pcre2_jit_callback_32,
-        arg3: *mut ::std::os::raw::c_void,
+        arg3: *mut ::libc::c_void,
     );
 }
 extern "C" {
@@ -2734,10 +2654,10 @@ extern "C" {
 }
 extern "C" {
     pub fn pcre2_get_error_message_32(
-        arg1: ::std::os::raw::c_int,
+        arg1: ::libc::c_int,
         arg2: *mut PCRE2_UCHAR32,
         arg3: usize,
-    ) -> ::std::os::raw::c_int;
+    ) -> ::libc::c_int;
 }
 extern "C" {
     pub fn pcre2_maketables_32(arg1: *mut pcre2_general_context_32) -> *const u8;

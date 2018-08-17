@@ -16,6 +16,7 @@ fi
 
 bindgen \
     "$PCRE2SYS_HEADER" \
+    --ctypes-prefix '::libc' \
     --whitelist-function '^pcre2_.*' \
     --whitelist-type '^pcre2_.*' \
     --whitelist-var '^PCRE2_.*' \
