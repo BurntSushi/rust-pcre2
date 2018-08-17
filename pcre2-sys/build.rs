@@ -105,13 +105,13 @@ fn main() {
     // Copy PCRE2 headers. Typically, `./configure` would do this for us
     // automatically, but since we're compiling by hand, we do it ourselves.
     let include = out.join("include");
-    fs::create_dir(&include).unwrap();
+    fs::create_dir_all(&include).unwrap();
     fs::copy("pcre2/src/config.h.generic", include.join("config.h")).unwrap();
     fs::copy("pcre2/src/pcre2.h.generic", include.join("pcre2.h")).unwrap();
 
     // Same deal for chartables. Just use the default.
     let src = out.join("src");
-    fs::create_dir(&src).unwrap();
+    fs::create_dir_all(&src).unwrap();
     fs::copy(
         "pcre2/src/pcre2_chartables.c.dist",
         src.join("pcre2_chartables.c"),
