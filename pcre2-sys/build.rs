@@ -1,9 +1,32 @@
+// The build for pcre2-sys currently does roughly the following:
+//
+//   1. Use the PCRE2 system library as reported by pkg-config if it exists
+//      and only if we don't explicitly want a static build.
+//   2. Otherwise, statically build PCRE2 by hand.
+//
+// For step 1, we permit opting out of using the system library via either
+// explicitly setting the PCRE2_SYS_STATIC environment variable or if we
+// otherwise believe we want a static build (e.g., when building with MUSL).
+//
+// For step 2, we roughly follow the directions as laid out in
+// pcre2/NON-AUTOTOOLS-BUILD. It's pretty straight-forward: copy a few files,
+// set a few defines and then build it. We can get away with a pretty stripped
+// down setup here since the PCRE2 build setup also handles various command
+// line tools (like pcre2grep) and its test infrastructure, and we needn't
+// concern ourselves with that.
+//
+// It is plausible that this build script will need to evolve to do better
+// platform detection for the various PCRE2 settings, but this should work
+// as-is on Windows, Linux and macOS.
+
 extern crate cc;
 extern crate pkg_config;
 
 use std::env;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
+// Files that PCRE2 needs to compile.
 const FILES: &'static [&'static str] = &[
    "pcre2_auto_possess.c",
    "pcre2_compile.c",
@@ -33,17 +56,26 @@ const FILES: &'static [&'static str] = &[
 ];
 
 fn main() {
-    let target = env::var("TARGET").unwrap();
-    // let host = env::var("HOST").unwrap();
-    // let src = env::current_dir().unwrap();
-    // let dst = PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    let windows = target.contains("windows");
+    println!("cargo:rerun-if-env-changed=PCRE2_SYS_STATIC");
 
-    // pkg_config::probe_library("libpcre2-8").unwrap();
+    let target = env::var("TARGET").unwrap();
+    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+
+    // Don't link to a system library if we want a static build.
+    let want_static =
+        env::var("PCRE2_SYS_STATIC").unwrap_or(String::new()) == "1"
+        || target.contains("musl");
+    if !want_static && pkg_config::probe_library("libpcre2-8").is_ok() {
+        return;
+    }
+
+    // Set some config options. We mostly just use the default values. We do
+    // this in lieu of patching config.h since it's easier.
     let mut builder = cc::Build::new();
     builder
         .define("PCRE2_CODE_UNIT_WIDTH", "8")
         .define("HAVE_STDLIB_H", "1")
+        .define("HAVE_MEMMOVE", "1")
         .define("HEAP_LIMIT", "20000000")
         .define("LINK_SIZE", "2")
         .define("MATCH_LIMIT", "10000000")
@@ -57,16 +89,32 @@ fn main() {
         .define("SUPPORT_JIT", "1")
         .define("SUPPORT_PCRE2_8", "1")
         .define("SUPPORT_UNICODE", "1");
-    if windows {
+    if target.contains("windows") {
         builder.define("HAVE_WINDOWS_H", "1");
     }
 
+    // Copy PCRE2 headers. Typically, `./configure` would do this for us
+    // automatically, but since we're compiling by hand, we do it ourselves.
+    let include = out.join("include");
+    fs::create_dir(&include).unwrap();
+    fs::copy("pcre2/src/config.h.generic", include.join("config.h")).unwrap();
+    fs::copy("pcre2/src/pcre2.h.generic", include.join("pcre2.h")).unwrap();
+
+    // Same deal for chartables. Just use the default.
+    let src = out.join("src");
+    fs::create_dir(&src).unwrap();
+    fs::copy(
+        "pcre2/src/pcre2_chartables.c.dist",
+        src.join("pcre2_chartables.c"),
+    ).unwrap();
+
+    // Build everything.
     builder
-        .include("pcre-custom")
-        .include("pcre/src");
+        .include("pcre2/src")
+        .include(&include)
+        .file(src.join("pcre2_chartables.c"));
     for file in FILES {
-        builder.file(Path::new("pcre/src").join(file));
+        builder.file(Path::new("pcre2/src").join(file));
     }
-    builder.file("pcre-custom/pcre2_chartables.c");
-    builder.compile("pcre2");
+    builder.compile("libpcre2.a");
 }
