@@ -43,18 +43,9 @@ fn main() {
     let mut builder = cc::Build::new();
     builder
         .define("PCRE2_CODE_UNIT_WIDTH", "8")
-        .define("HAVE_BCOPY_H", "1")
-        .define("HAVE_INTTYPES_H", "1")
-        .define("HAVE_MEMMOVE", "1")
-        .define("HAVE_MEMORY_H", "1")
-        .define("HAVE_STDINT_H", "1")
         .define("HAVE_STDLIB_H", "1")
-        .define("HAVE_STRERROR", "1")
-        .define("HAVE_STRINGS_H", "1")
-        .define("HAVE_STRING_H", "1")
         .define("HEAP_LIMIT", "20000000")
         .define("LINK_SIZE", "2")
-        .define("LT_OBJDIR", ".libs/")
         .define("MATCH_LIMIT", "10000000")
         .define("MATCH_LIMIT_DEPTH", "10000000")
         .define("MAX_NAME_COUNT", "10000")
