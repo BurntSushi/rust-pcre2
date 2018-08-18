@@ -48,3 +48,10 @@ setting the `PCRE2_SYS_STATIC` environment variable to `1`.
 
 Currently, this crate only supports `libpcre-8` where
 `PCRE2_CODE_UNIT_WIDTH=8`.
+
+This crate has been tested to work on Windows, Linux and macOS. Other platforms
+may work, and PRs to support them are welcome.
+
+If you're compiling this crate on Windows with the GNU toolchain, then you'll
+need to make sure you have a compatible C compiler installed, such as the one
+provided by the [mingw-w64](http://mingw-w64.org) project.
