@@ -4,7 +4,12 @@ use std::fmt;
 use libc::c_int;
 use pcre2_sys::*;
 
-#[derive(Clone, Debug)]
+/// A PCRE2 error.
+///
+/// An error can occur during compilation or during matching. The kind of this
+/// error indicates the type of operation being performed when the error
+/// occurred.
+#[derive(Clone)]
 pub struct Error {
     kind: ErrorKind,
     code: c_int,
@@ -23,6 +28,8 @@ pub enum ErrorKind {
     JIT,
     /// An error occurred while matching.
     Match,
+    /// An error occurred while querying a compiled regex for info.
+    Info,
     /// Hints that destructuring should not be exhaustive.
     ///
     /// This enum may grow additional variants, so this makes sure clients
@@ -55,6 +62,15 @@ impl Error {
     pub(crate) fn matching(code: c_int) -> Error {
         Error {
             kind: ErrorKind::Match,
+            code: code,
+            offset: None,
+        }
+    }
+
+    /// Create a new info error.
+    pub(crate) fn info(code: c_int) -> Error {
+        Error {
+            kind: ErrorKind::Info,
             code: code,
             offset: None,
         }
@@ -132,7 +148,23 @@ impl fmt::Display for Error {
             ErrorKind::Match => {
                 write!(f, "PCRE2: error matching: {}", msg)
             }
+            ErrorKind::Info => {
+                write!(f, "PCRE2: error getting info: {}", msg)
+            }
             _ => unreachable!(),
         }
+    }
+}
+
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // We include the error message in the debug representation since
+        // most humans probably don't have PCRE2 error codes memorized.
+        f.debug_struct("Error")
+            .field("kind", &self.kind)
+            .field("code", &self.code)
+            .field("offset", &self.offset)
+            .field("message", &self.error_message())
+            .finish()
     }
 }
