@@ -14,7 +14,14 @@ use pcre2_sys::*;
 use error::Error;
 
 /// A low level representation of a compiled PCRE2 code object.
-pub struct Code(*mut pcre2_code_8);
+pub struct Code {
+    code: *mut pcre2_code_8,
+    // We hang on to this but don't use it so that it gets freed when the
+    // compiled code gets freed. It's not clear whether this is necessary or
+    // not, but presumably doesn't cost us much to be conservative.
+    #[allow(dead_code)]
+    ctx: CompileContext,
+}
 
 // SAFETY: Compiled PCRE2 code objects are immutable once built and explicitly
 // safe to use from multiple threads simultaneously.
@@ -27,14 +34,18 @@ unsafe impl Sync for Code {}
 
 impl Drop for Code {
     fn drop(&mut self) {
-        unsafe { pcre2_code_free_8(self.0) }
+        unsafe { pcre2_code_free_8(self.code) }
     }
 }
 
 impl Code {
     /// Compile the given pattern with the given options. If there was a
     /// problem compiling the pattern, then return an error.
-    pub fn new(pattern: &str, options: u32) -> Result<Code, Error> {
+    pub fn new(
+        pattern: &str,
+        options: u32,
+        mut ctx: CompileContext,
+    ) -> Result<Code, Error> {
         let (mut error_code, mut error_offset) = (0, 0);
         let code = unsafe {
             pcre2_compile_8(
@@ -43,13 +54,13 @@ impl Code {
                 options,
                 &mut error_code,
                 &mut error_offset,
-                ptr::null_mut(),
+                ctx.as_mut_ptr(),
             )
         };
         if code.is_null() {
             Err(Error::compile(error_code, error_offset))
         } else {
-            Ok(Code(code))
+            Ok(Code { code, ctx })
         }
     }
 
@@ -59,7 +70,7 @@ impl Code {
     /// an error.
     pub fn jit_compile(&mut self) -> Result<(), Error> {
         let error_code = unsafe {
-            pcre2_jit_compile_8(self.0, PCRE2_JIT_COMPLETE)
+            pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE)
         };
         if error_code == 0 {
             Ok(())
@@ -110,7 +121,7 @@ impl Code {
 
     /// Return the underlying raw pointer to the code object.
     pub fn as_ptr(&self) -> *const pcre2_code_8 {
-        self.0
+        self.code
     }
 
     /// Returns the raw name table, where each entry in the table corresponds
@@ -198,6 +209,51 @@ impl Code {
         } else {
             Ok(1 + count as usize)
         }
+    }
+}
+
+/// A low level representation of PCRE2's compilation context.
+pub struct CompileContext(*mut pcre2_compile_context_8);
+
+// SAFETY: Compile contexts are safe to read from multiple threads
+// simultaneously. No interior mutability is used, so Sync is safe.
+unsafe impl Send for CompileContext {}
+unsafe impl Sync for CompileContext {}
+
+impl Drop for CompileContext {
+    fn drop(&mut self) {
+        unsafe { pcre2_compile_context_free_8(self.0) }
+    }
+}
+
+impl CompileContext {
+    /// Create a new empty compilation context.
+    ///
+    /// If memory could not be allocated for the context, then this panics.
+    pub fn new() -> CompileContext {
+        let ctx = unsafe {
+            pcre2_compile_context_create_8(ptr::null_mut())
+        };
+        assert!(!ctx.is_null(), "could not allocate compile context");
+        CompileContext(ctx)
+    }
+
+    /// Set the PCRE2 newline sequence.
+    ///
+    /// Valid values are: PCRE2_NEWLINE_CR, PCRE2_NEWLINE_LF,
+    /// PCRE2_NEWLINE_CRLF, PCRE2_NEWLINE_ANYCRLF, PCRE2_NEWLINE_ANY or
+    /// PCRE2_NEWLINE_NUL. Using any other value results in an error.
+    pub fn set_newline(&mut self, value: u32) -> Result<(), Error> {
+        let rc = unsafe { pcre2_set_newline_8(self.0, value) };
+        if rc == 0 {
+            Ok(())
+        } else {
+            Err(Error::option(rc))
+        }
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut pcre2_compile_context_8 {
+        self.0
     }
 }
 

@@ -7,11 +7,12 @@ use std::sync::Arc;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
     PCRE2_UCP, PCRE2_UTF, PCRE2_NO_UTF_CHECK, PCRE2_UNSET,
+    PCRE2_NEWLINE_ANYCRLF,
 };
 use thread_local::CachedThreadLocal;
 
 use error::Error;
-use ffi::{Code, MatchData};
+use ffi::{Code, CompileContext, MatchData};
 
 /// Match represents a single match of a regex in a subject string.
 ///
@@ -63,7 +64,9 @@ struct Config {
     /// PCRE2_EXTENDED
     extended: bool,
     /// PCRE2_MULTILINE
-    multiline: bool,
+    multi_line: bool,
+    /// PCRE2_NEWLINE_ANYCRLF
+    crlf: bool,
     /// PCRE2_UCP
     ucp: bool,
     /// PCRE2_UTF
@@ -80,7 +83,8 @@ impl Default for Config {
             caseless: false,
             dotall: false,
             extended: false,
-            multiline: false,
+            multi_line: false,
+            crlf: false,
             ucp: false,
             utf: false,
             utf_check: true,
@@ -117,7 +121,7 @@ impl RegexBuilder {
         if self.config.extended {
             options |= PCRE2_EXTENDED;
         }
-        if self.config.multiline {
+        if self.config.multi_line {
             options |= PCRE2_MULTILINE;
         }
         if self.config.ucp {
@@ -128,14 +132,20 @@ impl RegexBuilder {
             options |= PCRE2_UTF;
         }
 
-        let mut code = Code::new(pattern, options)?;
+        let mut ctx = CompileContext::new();
+        if self.config.crlf {
+            ctx.set_newline(PCRE2_NEWLINE_ANYCRLF)
+                .expect("PCRE2_NEWLINE_ANYCRLF is a legal value");
+        }
+
+        let mut code = Code::new(pattern, options, ctx)?;
         if self.config.jit {
             code.jit_compile()?;
         }
         let capture_names = code.capture_names()?;
         let mut idx = HashMap::new();
         for (i, group) in capture_names.iter().enumerate() {
-            if let Some(ref name) = group {
+            if let Some(ref name) = *group {
                 idx.insert(name.to_string(), i);
             }
         }
@@ -189,8 +199,20 @@ impl RegexBuilder {
     /// will only match at the beginning and end of a subject string.
     ///
     /// This option corresponds to the `m` flag.
-    pub fn multiline(&mut self, yes: bool) -> &mut RegexBuilder {
-        self.config.multiline = yes;
+    pub fn multi_line(&mut self, yes: bool) -> &mut RegexBuilder {
+        self.config.multi_line = yes;
+        self
+    }
+
+    /// Enable matching of CRLF as a line terminator.
+    ///
+    /// When enabled, anchors such as `^` and `$` will match any of the
+    /// following as a line terminator: `\r`, `\n` or `\r\n`.
+    ///
+    /// This is disabled by default, in which case, only `\n` is recognized as
+    /// a line terminator.
+    pub fn crlf(&mut self, yes: bool) -> &mut RegexBuilder {
+        self.config.crlf = yes;
         self
     }
 
@@ -555,6 +577,7 @@ impl Regex {
     ///
     /// This is useful for implementing the iterator, which permits avoiding
     /// the synchronization overhead of acquiring the match data.
+    #[inline(always)]
     fn find_at_with_match_data<'s>(
         &self,
         match_data: &RefCell<MatchData>,
@@ -1054,6 +1077,16 @@ mod tests {
     }
 
     #[test]
+    fn crlf() {
+        let re = RegexBuilder::new()
+            .crlf(true)
+            .build("a$")
+            .unwrap();
+        let m = re.find(b("a\r\n")).unwrap().unwrap();
+        assert_eq!(m.as_pair(), (0, 1));
+    }
+
+    #[test]
     fn dotall() {
         let re = RegexBuilder::new()
             .dotall(false)
@@ -1078,15 +1111,15 @@ mod tests {
     }
 
     #[test]
-    fn multiline() {
+    fn multi_line() {
         let re = RegexBuilder::new()
-            .multiline(false)
+            .multi_line(false)
             .build("^abc$")
             .unwrap();
         assert!(!re.is_match(b("foo\nabc\nbar")).unwrap());
 
         let re = RegexBuilder::new()
-            .multiline(true)
+            .multi_line(true)
             .build("^abc$")
             .unwrap();
         assert!(re.is_match(b("foo\nabc\nbar")).unwrap());

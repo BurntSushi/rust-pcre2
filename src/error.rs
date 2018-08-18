@@ -30,6 +30,8 @@ pub enum ErrorKind {
     Match,
     /// An error occurred while querying a compiled regex for info.
     Info,
+    /// An error occurred while setting an option.
+    Option,
     /// Hints that destructuring should not be exhaustive.
     ///
     /// This enum may grow additional variants, so this makes sure clients
@@ -71,6 +73,15 @@ impl Error {
     pub(crate) fn info(code: c_int) -> Error {
         Error {
             kind: ErrorKind::Info,
+            code: code,
+            offset: None,
+        }
+    }
+
+    /// Create a new option error.
+    pub(crate) fn option(code: c_int) -> Error {
+        Error {
+            kind: ErrorKind::Option,
             code: code,
             offset: None,
         }
@@ -121,7 +132,11 @@ impl Error {
     }
 }
 
-impl error::Error for Error {}
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        "pcre2 error"
+    }
+}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -150,6 +165,9 @@ impl fmt::Display for Error {
             }
             ErrorKind::Info => {
                 write!(f, "PCRE2: error getting info: {}", msg)
+            }
+            ErrorKind::Option => {
+                write!(f, "PCRE2: error setting option: {}", msg)
             }
             _ => unreachable!(),
         }
