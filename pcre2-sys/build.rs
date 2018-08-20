@@ -125,5 +125,9 @@ fn main() {
     for file in FILES {
         builder.file(Path::new("pcre2/src").join(file));
     }
+
+    if env::var("PCRE2_SYS_DEBUG").unwrap_or(String::new()) == "1" {
+        builder.debug(true);
+    }
     builder.compile("libpcre2.a");
 }
