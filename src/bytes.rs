@@ -74,7 +74,17 @@ struct Config {
     /// PCRE2_NO_UTF_CHECK
     utf_check: bool,
     /// use pcre2_jit_compile
-    jit: bool,
+    jit: JITChoice,
+}
+
+#[derive(Clone, Debug)]
+enum JITChoice {
+    /// Never do JIT compilation.
+    Never,
+    /// Always do JIT compilation and return an error if it fails.
+    Always,
+    /// Attempt to do JIT compilation but silently fall back to non-JIT.
+    Attempt,
 }
 
 impl Default for Config {
@@ -88,7 +98,7 @@ impl Default for Config {
             ucp: false,
             utf: false,
             utf_check: true,
-            jit: false,
+            jit: JITChoice::Never,
         }
     }
 }
@@ -139,8 +149,16 @@ impl RegexBuilder {
         }
 
         let mut code = Code::new(pattern, options, ctx)?;
-        if self.config.jit {
-            code.jit_compile()?;
+        match self.config.jit {
+            JITChoice::Never => {} // fallthrough
+            JITChoice::Always => {
+                code.jit_compile()?;
+            }
+            JITChoice::Attempt => {
+                if let Err(err) = code.jit_compile() {
+                    debug!("JIT compilation failed: {}", err);
+                }
+            }
         }
         let capture_names = code.capture_names()?;
         let mut idx = HashMap::new();
@@ -270,14 +288,40 @@ impl RegexBuilder {
         self
     }
 
-    /// Enable PCRE2's JIT.
+    /// Enable PCRE2's JIT and return an error if it's not available.
     ///
     /// This generally speeds up matching quite a bit. The downside is that it
     /// can increase the time it takes to compile a pattern.
     ///
-    /// This is disabled by default.
+    /// If the JIT isn't available or if JIT compilation returns an error, then
+    /// regex compilation will fail with the corresponding error.
+    ///
+    /// This is disabled by default, and always overrides `jit_if_available`.
     pub fn jit(&mut self, yes: bool) -> &mut RegexBuilder {
-        self.config.jit = yes;
+        if yes {
+            self.config.jit = JITChoice::Always;
+        } else {
+            self.config.jit = JITChoice::Never;
+        }
+        self
+    }
+
+    /// Enable PCRE2's JIT if it's available.
+    ///
+    /// This generally speeds up matching quite a bit. The downside is that it
+    /// can increase the time it takes to compile a pattern.
+    ///
+    /// If the JIT isn't available or if JIT compilation returns an error,
+    /// then a debug message with the error will be emitted and the regex will
+    /// otherwise silently fall back to non-JIT matching.
+    ///
+    /// This is disabled by default, and always overrides `jit`.
+    pub fn jit_if_available(&mut self, yes: bool) -> &mut RegexBuilder {
+        if yes {
+            self.config.jit = JITChoice::Attempt;
+        } else {
+            self.config.jit = JITChoice::Never;
+        }
         self
     }
 }
@@ -1157,8 +1201,31 @@ mod tests {
 
     #[test]
     fn jit4lyfe() {
+        use is_jit_available;
+
+        if is_jit_available() {
+            let re = RegexBuilder::new()
+                .jit(true)
+                .build(r"\w")
+                .unwrap();
+            assert!(re.is_match(b("a")).unwrap());
+        } else {
+            // Check that if JIT isn't enabled, then we get an error if we
+            // require JIT.
+            RegexBuilder::new()
+                .jit(true)
+                .build(r"\w")
+                .unwrap_err();
+        }
+    }
+
+    // Unlike jit4lyfe, this tests that everything works when requesting the
+    // JIT only if it's available. In jit4lyfe, we require the JIT or fail.
+    // If the JIT isn't available, then in this test, we simply don't use it.
+    #[test]
+    fn jit_if_available() {
         let re = RegexBuilder::new()
-            .jit(true)
+            .jit_if_available(true)
             .build(r"\w")
             .unwrap();
         assert!(re.is_match(b("a")).unwrap());
