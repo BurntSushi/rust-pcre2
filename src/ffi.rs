@@ -13,6 +13,19 @@ use pcre2_sys::*;
 
 use error::Error;
 
+/// Returns true if and only if PCRE2 believes that JIT is available.
+pub fn is_jit_available() -> bool {
+    let mut rc: u32 = 0;
+    let error_code = unsafe {
+        pcre2_config_8(PCRE2_CONFIG_JIT, &mut rc as *mut _ as *mut c_void)
+    };
+    if error_code < 0 {
+        // If PCRE2_CONFIG_JIT is a bad option, then there's a bug somewhere.
+        panic!("BUG: {}", Error::jit(error_code));
+    }
+    rc == 1
+}
+
 /// A low level representation of a compiled PCRE2 code object.
 pub struct Code {
     code: *mut pcre2_code_8,
