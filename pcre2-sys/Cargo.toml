@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit"]
 license = "Unlicense/MIT"
 categories = ["external-ffi-bindings"]
+edition = "2018"
 
 [dependencies]
 libc = "0.2"

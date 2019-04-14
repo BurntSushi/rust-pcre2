@@ -4,6 +4,7 @@ use std::fmt;
 use std::ops::Index;
 use std::sync::Arc;
 
+use log::debug;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
     PCRE2_UCP, PCRE2_UTF, PCRE2_NO_UTF_CHECK, PCRE2_UNSET,
@@ -11,8 +12,8 @@ use pcre2_sys::{
 };
 use thread_local::CachedThreadLocal;
 
-use error::Error;
-use ffi::{Code, CompileContext, MatchConfig, MatchData};
+use crate::error::Error;
+use crate::ffi::{Code, CompileContext, MatchConfig, MatchData};
 
 /// Match represents a single match of a regex in a subject string.
 ///
@@ -388,7 +389,7 @@ impl Clone for Regex {
 }
 
 impl fmt::Debug for Regex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Regex({:?})", self.pattern)
     }
 }
@@ -805,7 +806,7 @@ impl Clone for CaptureLocations {
 }
 
 impl fmt::Debug for CaptureLocations {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut offsets: Vec<Option<usize>> = vec![];
         for &offset in self.data.ovector() {
             if offset == PCRE2_UNSET {
@@ -915,7 +916,7 @@ impl<'s> Captures<'s> {
 }
 
 impl<'s> fmt::Debug for Captures<'s> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Captures").field(&CapturesDebug(self)).finish()
     }
 }
@@ -923,7 +924,7 @@ impl<'s> fmt::Debug for Captures<'s> {
 struct CapturesDebug<'c, 's: 'c>(&'c Captures<'s>);
 
 impl<'c, 's> fmt::Debug for CapturesDebug<'c, 's> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn escape_bytes(bytes: &[u8]) -> String {
             let mut s = String::new();
             for &b in bytes {
@@ -1108,7 +1109,7 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
 #[cfg(test)]
 mod tests {
     use super::{Regex, RegexBuilder};
-    use is_jit_available;
+    use crate::is_jit_available;
 
     fn b(string: &str) -> &[u8] {
         string.as_bytes()

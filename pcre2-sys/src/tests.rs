@@ -1,6 +1,6 @@
 use std::ptr;
 
-use bindings::*;
+use crate::bindings::*;
 
 #[test]
 fn itworks() {

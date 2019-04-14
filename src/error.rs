@@ -139,7 +139,7 @@ impl error::Error for Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = self.error_message();
         match self.kind {
             ErrorKind::Compile => {
@@ -175,7 +175,7 @@ impl fmt::Display for Error {
 }
 
 impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // We include the error message in the debug representation since
         // most humans probably don't have PCRE2 error codes memorized.
         f.debug_struct("Error")
