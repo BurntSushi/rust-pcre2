@@ -26,6 +26,14 @@ pub fn is_jit_available() -> bool {
     rc == 1
 }
 
+/// Returns the version of PCRE2 being used.
+///
+/// The tuple returned corresponds to the major and minor version, e.g.,
+/// `(10, 32)`.
+pub fn version() -> (u32, u32) {
+    (PCRE2_MAJOR, PCRE2_MINOR)
+}
+
 /// A low level representation of a compiled PCRE2 code object.
 pub struct Code {
     code: *mut pcre2_code_8,
