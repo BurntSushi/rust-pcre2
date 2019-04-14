@@ -12,7 +12,7 @@ use pcre2_sys::{
 use thread_local::CachedThreadLocal;
 
 use error::Error;
-use ffi::{Code, CompileContext, MatchData};
+use ffi::{Code, CompileContext, MatchConfig, MatchData};
 
 /// Match represents a single match of a regex in a subject string.
 ///
@@ -75,6 +75,8 @@ struct Config {
     utf_check: bool,
     /// use pcre2_jit_compile
     jit: JITChoice,
+    /// Match-time specific configuration knobs.
+    match_config: MatchConfig,
 }
 
 #[derive(Clone, Debug)]
@@ -99,6 +101,7 @@ impl Default for Config {
             utf: false,
             utf_check: true,
             jit: JITChoice::Never,
+            match_config: MatchConfig::default(),
         }
     }
 }
@@ -168,7 +171,7 @@ impl RegexBuilder {
             }
         }
         Ok(Regex {
-            config: self.config.clone(),
+            config: Arc::new(self.config.clone()),
             pattern: pattern.to_string(),
             code: Arc::new(code),
             capture_names: Arc::new(capture_names),
@@ -324,6 +327,27 @@ impl RegexBuilder {
         }
         self
     }
+
+    /// Set the maximum size of PCRE2's JIT stack, in bytes. If the JIT is
+    /// not enabled, then this has no effect.
+    ///
+    /// When `None` is given, no custom JIT stack will be created, and instead,
+    /// the default JIT stack is used. When the default is used, its maximum
+    /// size is 32 KB.
+    ///
+    /// When this is set, then a new JIT stack will be created with the given
+    /// maximum size as its limit.
+    ///
+    /// Increasing the stack size can be useful for larger regular expressions.
+    ///
+    /// By default, this is set to `None`.
+    pub fn max_jit_stack_size(
+        &mut self,
+        bytes: Option<usize>,
+    ) -> &mut RegexBuilder {
+        self.config.match_config.max_jit_stack_size = bytes;
+        self
+    }
 }
 
 /// A compiled PCRE2 regular expression.
@@ -332,7 +356,7 @@ impl RegexBuilder {
 /// performance, it is better to clone a new regex for each thread.
 pub struct Regex {
     /// The configuration used to build the regex.
-    config: Config,
+    config: Arc<Config>,
     /// The original pattern string.
     pattern: String,
     /// The underlying compiled PCRE2 object.
@@ -353,7 +377,7 @@ pub struct Regex {
 impl Clone for Regex {
     fn clone(&self) -> Regex {
         Regex {
-            config: self.config.clone(),
+            config: Arc::clone(&self.config),
             pattern: self.pattern.clone(),
             code: Arc::clone(&self.code),
             capture_names: Arc::clone(&self.capture_names),
@@ -742,13 +766,17 @@ impl Regex {
     pub fn capture_locations(&self) -> CaptureLocations {
         CaptureLocations {
             code: Arc::clone(&self.code),
-            data: MatchData::new(&self.code),
+            data: self.new_match_data(),
         }
     }
 
     fn match_data(&self) -> &RefCell<MatchData> {
-        let create = || Box::new(RefCell::new(MatchData::new(&self.code)));
+        let create = || Box::new(RefCell::new(self.new_match_data()));
         self.match_data.get_or(create)
+    }
+
+    fn new_match_data(&self) -> MatchData {
+        MatchData::new(self.config.match_config.clone(), &self.code)
     }
 }
 
@@ -771,7 +799,7 @@ impl Clone for CaptureLocations {
     fn clone(&self) -> CaptureLocations {
         CaptureLocations {
             code: Arc::clone(&self.code),
-            data: MatchData::new(&self.code),
+            data: MatchData::new(self.data.config().clone(), &self.code),
         }
     }
 }
@@ -1080,6 +1108,7 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
 #[cfg(test)]
 mod tests {
     use super::{Regex, RegexBuilder};
+    use is_jit_available;
 
     fn b(string: &str) -> &[u8] {
         string.as_bytes()
@@ -1201,8 +1230,6 @@ mod tests {
 
     #[test]
     fn jit4lyfe() {
-        use is_jit_available;
-
         if is_jit_available() {
             let re = RegexBuilder::new()
                 .jit(true)
@@ -1300,5 +1327,39 @@ mod tests {
         assert_eq!(cap_iter_tuples(&re, b"\na\n\n"), vec![
             (0, 0), (1, 1), (3, 3),
         ]);
+    }
+
+    #[test]
+    fn max_jit_stack_size_does_something() {
+        if !is_jit_available() {
+            return;
+        }
+
+        let hundred = "\
+            ABCDEFGHIJKLMNOPQRSTUVWXY\
+            ABCDEFGHIJKLMNOPQRSTUVWXY\
+            ABCDEFGHIJKLMNOPQRSTUVWXY\
+            ABCDEFGHIJKLMNOPQRSTUVWXY\
+        ";
+        let hay = format!("{}", hundred.repeat(100));
+
+        // First, try a regex that checks that we can blow the JIT stack limit.
+        let re = RegexBuilder::new()
+            .ucp(true)
+            .jit(true)
+            .max_jit_stack_size(Some(1))
+            .build(r"((((\w{10})){100}))+")
+            .unwrap();
+        let err = re.is_match(hay.as_bytes()).unwrap_err();
+        assert!(err.to_string().contains("JIT stack limit reached"));
+
+        // Now bump up the JIT stack limit and check that it succeeds.
+        let re = RegexBuilder::new()
+            .ucp(true)
+            .jit(true)
+            .max_jit_stack_size(Some(1<<20))
+            .build(r"((((\w{10})){100}))+")
+            .unwrap();
+        assert!(re.is_match(hay.as_bytes()).unwrap());
     }
 }

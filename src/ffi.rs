@@ -5,6 +5,7 @@ unsafety, but this layer will take care of the obvious things, such as
 resource management and error handling.
 */
 
+use std::cmp;
 use std::ptr;
 use std::slice;
 
@@ -37,6 +38,7 @@ pub fn version() -> (u32, u32) {
 /// A low level representation of a compiled PCRE2 code object.
 pub struct Code {
     code: *mut pcre2_code_8,
+    compiled_jit: bool,
     // We hang on to this but don't use it so that it gets freed when the
     // compiled code gets freed. It's not clear whether this is necessary or
     // not, but presumably doesn't cost us much to be conservative.
@@ -81,7 +83,7 @@ impl Code {
         if code.is_null() {
             Err(Error::compile(error_code, error_offset))
         } else {
-            Ok(Code { code, ctx })
+            Ok(Code { code, compiled_jit: false, ctx })
         }
     }
 
@@ -94,6 +96,7 @@ impl Code {
             pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE)
         };
         if error_code == 0 {
+            self.compiled_jit = true;
             Ok(())
         } else {
             Err(Error::jit(error_code))
@@ -278,13 +281,32 @@ impl CompileContext {
     }
 }
 
+/// Configuration for PCRE2's match context.
+#[derive(Clone, Debug)]
+pub struct MatchConfig {
+    /// When set, a custom JIT stack will be created with the given maximum
+    /// size.
+    pub max_jit_stack_size: Option<usize>,
+}
+
+impl Default for MatchConfig {
+    fn default() -> MatchConfig {
+        MatchConfig {
+            max_jit_stack_size: None,
+        }
+    }
+}
+
 /// A low level representation of a match data block.
 ///
 /// Technically, a single match data block can be used with multiple regexes
 /// (not simultaneously), but in practice, we just create a single match data
 /// block for each regex for each thread it's used in.
 pub struct MatchData {
+    config: MatchConfig,
+    match_context: *mut pcre2_match_context_8,
     match_data: *mut pcre2_match_data_8,
+    jit_stack: Option<*mut pcre2_jit_stack_8>,
     ovector_ptr: *const usize,
     ovector_count: u32,
 }
@@ -300,7 +322,13 @@ unsafe impl Sync for MatchData {}
 
 impl Drop for MatchData {
     fn drop(&mut self) {
-        unsafe { pcre2_match_data_free_8(self.match_data) }
+        unsafe {
+            if let Some(stack) = self.jit_stack {
+                pcre2_jit_stack_free_8(stack);
+            }
+            pcre2_match_data_free_8(self.match_data);
+            pcre2_match_context_free_8(self.match_context);
+        }
     }
 }
 
@@ -308,7 +336,12 @@ impl MatchData {
     /// Create a new match data block from a compiled PCRE2 code object.
     ///
     /// This panics if memory could not be allocated for the block.
-    pub fn new(code: &Code) -> MatchData {
+    pub fn new(config: MatchConfig, code: &Code) -> MatchData {
+        let match_context = unsafe {
+            pcre2_match_context_create_8(ptr::null_mut())
+        };
+        assert!(!match_context.is_null(), "failed to allocate match context");
+
         let match_data = unsafe {
             pcre2_match_data_create_from_pattern_8(
                 code.as_ptr(),
@@ -317,10 +350,38 @@ impl MatchData {
         };
         assert!(!match_data.is_null(), "failed to allocate match data block");
 
+        let jit_stack = match config.max_jit_stack_size {
+            None => None,
+            Some(_) if !code.compiled_jit => None,
+            Some(max) => {
+                let stack = unsafe {
+                    pcre2_jit_stack_create_8(
+                        cmp::min(max, 32 * 1<<10), max, ptr::null_mut(),
+                    )
+                };
+                assert!(!stack.is_null(), "failed to allocate JIT stack");
+
+                unsafe {
+                    pcre2_jit_stack_assign_8(
+                        match_context, None, stack as *mut c_void,
+                    )
+                };
+                Some(stack)
+            }
+        };
+
         let ovector_ptr = unsafe { pcre2_get_ovector_pointer_8(match_data) };
         assert!(!ovector_ptr.is_null(), "got NULL ovector pointer");
         let ovector_count = unsafe { pcre2_get_ovector_count_8(match_data) };
-        MatchData { match_data, ovector_ptr, ovector_count }
+        MatchData {
+            config, match_context, match_data, jit_stack,
+            ovector_ptr, ovector_count,
+        }
+    }
+
+    /// Return the configuration for this match data object.
+    pub fn config(&self) -> &MatchConfig {
+        &self.config
     }
 
     /// Execute PCRE2's primary match routine on the given subject string
@@ -352,7 +413,7 @@ impl MatchData {
             start,
             options,
             self.as_mut_ptr(),
-            ptr::null_mut(),
+            self.match_context,
         );
         if rc == PCRE2_ERROR_NOMATCH {
             Ok(false)
