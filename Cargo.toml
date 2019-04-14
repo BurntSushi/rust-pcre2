@@ -1,6 +1,6 @@
 [package]
 name = "pcre2"
-version = "0.1.1"  #:version
+version = "0.2.0"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = "High level wrapper library for PCRE2."
 documentation = "https://docs.rs/pcre2"
@@ -16,7 +16,7 @@ edition = "2018"
 members = ["pcre2-sys"]
 
 [dependencies]
-libc = "0.2"
+libc = "0.2.46"
 log = "0.4.5"
-pcre2-sys = { version = "0.1.0", path = "pcre2-sys" }
+pcre2-sys = { version = "0.2.0", path = "pcre2-sys" }
 thread_local = "0.3.6"
