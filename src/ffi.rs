@@ -12,7 +12,7 @@ use std::slice;
 use libc::c_void;
 use pcre2_sys::*;
 
-use error::Error;
+use crate::error::Error;
 
 /// Returns true if and only if PCRE2 believes that JIT is available.
 pub fn is_jit_available() -> bool {

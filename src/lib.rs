@@ -11,14 +11,8 @@ are welcome to improve this.
 
 #![deny(missing_docs)]
 
-extern crate libc;
-#[macro_use]
-extern crate log;
-extern crate pcre2_sys;
-extern crate thread_local;
-
-pub use error::{Error, ErrorKind};
-pub use ffi::{is_jit_available, version};
+pub use crate::error::{Error, ErrorKind};
+pub use crate::ffi::{is_jit_available, version};
 
 /**
 PCRE2 regular expressions for matching on arbitrary bytes.
