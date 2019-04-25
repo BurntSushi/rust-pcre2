@@ -71,7 +71,7 @@ fn main() {
     }
 
     // For a static build, make sure our PCRE2 submodule has been loaded.
-    if !Path::new("pcre2/.git").exists() {
+    if has_git() && !Path::new("pcre2/.git").exists() {
         Command::new("git")
             .args(&["submodule", "update", "--init"])
             .status()
@@ -130,4 +130,11 @@ fn main() {
         builder.debug(true);
     }
     builder.compile("libpcre2.a");
+}
+
+fn has_git() -> bool {
+    Command::new("git").arg("--help")
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
