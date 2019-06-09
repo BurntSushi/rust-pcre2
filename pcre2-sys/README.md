@@ -44,7 +44,9 @@ PCRE2 system library. If that isn't available or if static linking is desired,
 then PCRE2 is built from source and statically linked.
 
 Static linking will automatically happen for MUSL targets, but can be forced by
-setting the `PCRE2_SYS_STATIC` environment variable to `1`.
+setting the `PCRE2_SYS_STATIC` environment variable to `1`. Similarly, if
+`PCRE2_SYS_STATIC` is set to `0`, then static linking will be forcefully
+disabled, even for MUSL targets.
 
 Currently, this crate only supports `libpcre-8` where
 `PCRE2_CODE_UNIT_WIDTH=8`.

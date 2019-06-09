@@ -63,9 +63,7 @@ fn main() {
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
     // Don't link to a system library if we want a static build.
-    let want_static =
-        env::var("PCRE2_SYS_STATIC").unwrap_or(String::new()) == "1"
-        || target.contains("musl");
+    let want_static = pcre2_sys_static().unwrap_or(target.contains("musl"));
     if !want_static && pkg_config::probe_library("libpcre2-8").is_ok() {
         return;
     }
@@ -137,4 +135,19 @@ fn has_git() -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+fn pcre2_sys_static() -> Option<bool> {
+    match env::var("PCRE2_SYS_STATIC") {
+        Err(_) => None,
+        Ok(s) => {
+            if s == "1" {
+                Some(true)
+            } else if s == "0" {
+                Some(false)
+            } else {
+                None
+            }
+        }
+    }
 }
