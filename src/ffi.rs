@@ -406,10 +406,19 @@ impl MatchData {
         start: usize,
         options: u32,
     ) -> Result<bool, Error> {
+        // `subject.as_ptr()` could be invalid if it was created via a type which uses lazy allocation
+        // a static empty array is created in the case where the subject length is 0
+        let (subject_ptr, subject_len) = if subject.len() > 0 {
+            (subject.as_ptr(), subject.len())
+        } else {
+            let empty_subject: [u8; 0] = [];
+            (empty_subject.as_ptr(), empty_subject.len())
+        };
+
         let rc = pcre2_match_8(
             code.as_ptr(),
-            subject.as_ptr(),
-            subject.len(),
+            subject_ptr,
+            subject_len,
             start,
             options,
             self.as_mut_ptr(),

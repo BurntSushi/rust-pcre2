@@ -1260,6 +1260,17 @@ mod tests {
     }
 
     #[test]
+    fn jit_test_lazy_alloc_subject() {
+        let subject: Vec<u8> = vec![];
+
+        let re = RegexBuilder::new()
+            .jit_if_available(true)
+            .build(r"xxxx|xxxx|xxxx")
+            .unwrap();
+        assert!(!re.is_match(&subject).unwrap());
+    }
+
+    #[test]
     fn utf_with_invalid_data() {
         let re = RegexBuilder::new()
             .build(r".")
