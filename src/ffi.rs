@@ -402,10 +402,20 @@ impl MatchData {
     pub unsafe fn find(
         &mut self,
         code: &Code,
-        subject: &[u8],
+        mut subject: &[u8],
         start: usize,
         options: u32,
     ) -> Result<bool, Error> {
+        // When the subject is empty, we use an empty slice
+        // with a known valid pointer. Otherwise, slices derived
+        // from, e.g., an empty `Vec<u8>` may not have a valid
+        // pointer, since creating an empty `Vec` is guaranteed
+        // to not allocate.
+        const EMPTY: &[u8] = &[];
+        if subject.is_empty() {
+            subject = EMPTY;
+        }
+
         let rc = pcre2_match_8(
             code.as_ptr(),
             subject.as_ptr(),

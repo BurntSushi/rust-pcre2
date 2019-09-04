@@ -1259,6 +1259,19 @@ mod tests {
         assert!(re.is_match(b("a")).unwrap());
     }
 
+    // This tests a regression caused a segfault in the pcre2 library
+    // https://github.com/BurntSushi/rust-pcre2/issues/10
+    #[test]
+    fn jit_test_lazy_alloc_subject() {
+        let subject: Vec<u8> = vec![];
+
+        let re = RegexBuilder::new()
+            .jit_if_available(true)
+            .build(r"xxxx|xxxx|xxxx")
+            .unwrap();
+        assert!(!re.is_match(&subject).unwrap());
+    }
+
     #[test]
     fn utf_with_invalid_data() {
         let re = RegexBuilder::new()
