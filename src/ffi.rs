@@ -402,13 +402,10 @@ impl MatchData {
     pub unsafe fn find(
         &mut self,
         code: &Code,
-        subject: &[u8],
+        mut subject: &[u8],
         start: usize,
         options: u32,
     ) -> Result<bool, Error> {
-
-        let mut subject = subject;
-
         // When the subject is empty, we use an empty slice
         // with a known valid pointer. Otherwise, slices derived
         // from, e.g., an empty `Vec<u8>` may not have a valid
