@@ -406,19 +406,23 @@ impl MatchData {
         start: usize,
         options: u32,
     ) -> Result<bool, Error> {
-        // `subject.as_ptr()` could be invalid if it was created via a type which uses lazy allocation
-        // a static empty array is created in the case where the subject length is 0
-        let (subject_ptr, subject_len) = if subject.len() > 0 {
-            (subject.as_ptr(), subject.len())
-        } else {
-            let empty_subject: [u8; 0] = [];
-            (empty_subject.as_ptr(), empty_subject.len())
-        };
+
+        let mut subject = subject;
+
+        // When the subject is empty, we use an empty slice
+        // with a known valid pointer. Otherwise, slices derived
+        // from, e.g., an empty `Vec<u8>` may not have a valid
+        // pointer, since creating an empty `Vec` is guaranteed
+        // to not allocate.
+        const EMPTY: &[u8] = &[];
+        if subject.is_empty() {
+            subject = EMPTY;
+        }
 
         let rc = pcre2_match_8(
             code.as_ptr(),
-            subject_ptr,
-            subject_len,
+            subject.as_ptr(),
+            subject.len(),
             start,
             options,
             self.as_mut_ptr(),
