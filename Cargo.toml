@@ -19,4 +19,4 @@ members = ["pcre2-sys"]
 libc = "0.2.46"
 log = "0.4.5"
 pcre2-sys = { version = "0.2.0", path = "pcre2-sys" }
-thread_local = "0.3.6"
+thread_local = "1"

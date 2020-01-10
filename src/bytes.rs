@@ -772,7 +772,7 @@ impl Regex {
     }
 
     fn match_data(&self) -> &RefCell<MatchData> {
-        let create = || Box::new(RefCell::new(self.new_match_data()));
+        let create = || RefCell::new(self.new_match_data());
         self.match_data.get_or(create)
     }
 
