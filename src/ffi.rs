@@ -93,7 +93,7 @@ impl Code {
     /// an error.
     pub fn jit_compile(&mut self) -> Result<(), Error> {
         let error_code = unsafe {
-            pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE)
+            pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE | PCRE2_JIT_PARTIAL_HARD)
         };
         if error_code == 0 {
             self.compiled_jit = true;
@@ -427,6 +427,9 @@ impl MatchData {
         );
         if rc == PCRE2_ERROR_NOMATCH {
             Ok(false)
+        } else if rc == PCRE2_ERROR_PARTIAL &&
+            options & (PCRE2_PARTIAL_HARD | PCRE2_PARTIAL_SOFT) != 0 {
+            Ok(true)
         } else if rc > 0 {
             Ok(true)
         } else {

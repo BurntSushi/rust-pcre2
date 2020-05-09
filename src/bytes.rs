@@ -8,7 +8,7 @@ use log::debug;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
     PCRE2_UCP, PCRE2_UTF, PCRE2_NO_UTF_CHECK, PCRE2_UNSET,
-    PCRE2_NEWLINE_ANYCRLF,
+    PCRE2_NEWLINE_ANYCRLF, PCRE2_PARTIAL_HARD
 };
 use thread_local::CachedThreadLocal;
 
@@ -427,6 +427,25 @@ impl Regex {
         self.is_match_at(subject, 0)
     }
 
+    /// Returns true if and only if the regex fully or partially matches the subject string given.
+    /// A partial match occurs when there is a match up to the end of a subject string,
+    /// but more characters are needed to match the entire pattern.
+    ///
+    /// # Example
+    ///
+    /// Test if given string can be a beginning of a valid telephone number:
+    /// ```rust
+    /// # fn example() -> Result<(), ::pcre2::Error> {
+    /// use pcre2::bytes::Regex;
+    ///
+    /// let text = b"123-456-";
+    /// assert!(Regex::new(r"^\d{3}-\d{3}-\d{3}")?.is_partial_match(text)?);
+    /// # Ok(()) }; example().unwrap()
+    /// ```
+    pub fn is_partial_match(&self, subject: &[u8]) -> Result<bool, Error> {
+        self.is_partial_match_at(subject, 0)
+    }
+
     /// Returns the start and end byte range of the leftmost-first match in
     /// `subject`. If no match exists, then `None` is returned.
     ///
@@ -627,6 +646,39 @@ impl Regex {
         // the caller.
         Ok(unsafe { match_data.find(&self.code, subject, start, options)? })
     }
+
+    /// Returns the same as is_partial_match, but starts the search at the given
+    /// offset.
+    ///
+    /// The significance of the starting point is that it takes the surrounding
+    /// context into consideration. For example, the `\A` anchor can only
+    /// match when `start == 0`.
+    pub fn is_partial_match_at(
+        &self,
+        subject: &[u8],
+        start: usize,
+    ) -> Result<bool, Error> {
+        assert!(
+            start <= subject.len(),
+            "start ({}) must be <= subject.len() ({})",
+            start,
+            subject.len()
+        );
+
+        let mut options = PCRE2_PARTIAL_HARD;
+        if !self.config.utf_check {
+            options |= PCRE2_NO_UTF_CHECK;
+        }
+
+        let match_data = self.match_data();
+        let mut match_data = match_data.borrow_mut();
+        // SAFETY: The only unsafe PCRE2 option we potentially use here is
+        // PCRE2_NO_UTF_CHECK, and that only occurs if the caller executes the
+        // `disable_utf_check` method, which propagates the safety contract to
+        // the caller.
+        Ok(unsafe { match_data.find(&self.code, subject, start, options)? })
+    }
+
 
     /// Returns the same as find, but starts the search at the given
     /// offset.
@@ -1148,6 +1200,18 @@ mod tests {
             .build("β")
             .unwrap();
         assert!(re.is_match(b("Β")).unwrap());
+    }
+
+    #[test]
+    fn partial() {
+        let re = RegexBuilder::new()
+            .build("ab$")
+            .unwrap();
+
+        assert!(re.is_partial_match(b("a")).unwrap());
+        assert!(re.is_partial_match(b("ab")).unwrap());
+        assert!(!re.is_partial_match(b("abc")).unwrap());
+        assert!(!re.is_partial_match(b("b")).unwrap());
     }
 
     #[test]
