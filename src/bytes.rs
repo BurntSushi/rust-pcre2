@@ -4,6 +4,7 @@ use std::fmt;
 use std::ops::Index;
 use std::sync::Arc;
 
+#[cfg(feature = "log")]
 use log::debug;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
@@ -160,6 +161,7 @@ impl RegexBuilder {
             }
             JITChoice::Attempt => {
                 if let Err(err) = code.jit_compile() {
+                    #[cfg(feature = "log")]
                     debug!("JIT compilation failed: {}", err);
                 }
             }
