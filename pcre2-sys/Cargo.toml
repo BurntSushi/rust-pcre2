@@ -16,5 +16,8 @@ edition = "2018"
 libc = "0.2"
 
 [build-dependencies]
-cc = { version = "1", features = ["parallel"] }
+cc = "1"
 pkg-config = "0.3.13"
+
+[features]
+parallel = ["cc/parallel"]

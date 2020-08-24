@@ -20,3 +20,7 @@ libc = "0.2.46"
 log = "0.4.5"
 pcre2-sys = { version = "0.2.0", path = "pcre2-sys" }
 thread_local = "1"
+
+[features]
+default = ["parallel"]
+parallel = ["pcre2-sys/parallel"]
