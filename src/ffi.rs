@@ -416,7 +416,13 @@ impl MatchData {
             subject = EMPTY;
         }
 
-        let rc = pcre2_match_8(
+        let match_func = if code.compiled_jit {
+            pcre2_jit_match_8
+        } else {
+            pcre2_match_8
+        };
+
+        let rc = match_func(
             code.as_ptr(),
             subject.as_ptr(),
             subject.len(),
