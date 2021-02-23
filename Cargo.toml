@@ -17,6 +17,9 @@ members = ["pcre2-sys"]
 
 [dependencies]
 libc = "0.2.46"
-log = "0.4.5"
+log = { version = "0.4.5", optional = true }
 pcre2-sys = { version = "0.2.0", path = "pcre2-sys" }
 thread_local = "1"
+
+[features]
+default = ["log"]
