@@ -89,11 +89,18 @@ impl Code {
 
     /// JIT compile this code object.
     ///
+    /// If partial is set, PCRE2_JIT_PARTIAL_HARD option flag is added
+    /// to generate code for partial matching.
+    ///
     /// If there was a problem performing JIT compilation, then this returns
     /// an error.
-    pub fn jit_compile(&mut self) -> Result<(), Error> {
+    pub fn jit_compile(&mut self, partial: bool) -> Result<(), Error> {
+        let mut options = PCRE2_JIT_COMPLETE;
+        if partial {
+            options |= PCRE2_JIT_PARTIAL_HARD;
+        }
         let error_code = unsafe {
-            pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE)
+            pcre2_jit_compile_8(self.code, options)
         };
         if error_code == 0 {
             self.compiled_jit = true;
@@ -390,6 +397,10 @@ impl MatchData {
     ///
     /// This returns false if no match occurred.
     ///
+    /// If partial match was requested by PCRE2_PARTIAL_HARD or
+    /// PCRE2_PARTIAL_SOFT option, this returns true if either a partial match
+    /// or a complete match occurred.
+    ///
     /// Match offsets can be extracted via `ovector`.
     ///
     /// # Safety
@@ -427,6 +438,9 @@ impl MatchData {
         );
         if rc == PCRE2_ERROR_NOMATCH {
             Ok(false)
+        } else if rc == PCRE2_ERROR_PARTIAL &&
+            options & (PCRE2_PARTIAL_HARD | PCRE2_PARTIAL_SOFT) != 0 {
+            Ok(true)
         } else if rc > 0 {
             Ok(true)
         } else {

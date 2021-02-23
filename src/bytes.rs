@@ -7,9 +7,8 @@ use std::sync::Arc;
 use log::debug;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
-    PCRE2_UCP, PCRE2_UTF, PCRE2_NO_UTF_CHECK, PCRE2_UNSET,
-    PCRE2_NEWLINE_ANYCRLF,
-};
+    PCRE2_UCP, PCRE2_UTF, PCRE2_NO_UTF_CHECK, PCRE2_UNSET, PCRE2_NEWLINE_ANYCRLF,
+    PCRE2_PARTIAL_HARD};
 use thread_local::CachedThreadLocal;
 
 use crate::error::Error;
@@ -76,6 +75,8 @@ struct Config {
     utf_check: bool,
     /// use pcre2_jit_compile
     jit: JITChoice,
+    /// use JIT for partial matching
+    jit_partial_matching: bool,
     /// Match-time specific configuration knobs.
     match_config: MatchConfig,
 }
@@ -102,6 +103,7 @@ impl Default for Config {
             utf: false,
             utf_check: true,
             jit: JITChoice::Never,
+            jit_partial_matching: false,
             match_config: MatchConfig::default(),
         }
     }
@@ -156,10 +158,10 @@ impl RegexBuilder {
         match self.config.jit {
             JITChoice::Never => {} // fallthrough
             JITChoice::Always => {
-                code.jit_compile()?;
+                code.jit_compile(self.config.jit_partial_matching)?;
             }
             JITChoice::Attempt => {
-                if let Err(err) = code.jit_compile() {
+                if let Err(err) = code.jit_compile(self.config.jit_partial_matching) {
                     debug!("JIT compilation failed: {}", err);
                 }
             }
@@ -315,6 +317,9 @@ impl RegexBuilder {
     /// This generally speeds up matching quite a bit. The downside is that it
     /// can increase the time it takes to compile a pattern.
     ///
+    /// This option enables JIT only for complete matching.
+    /// To enable JIT additionally for partial matching, enable `jit_partial_matching`.
+    ///
     /// If the JIT isn't available or if JIT compilation returns an error,
     /// then a debug message with the error will be emitted and the regex will
     /// otherwise silently fall back to non-JIT matching.
@@ -326,6 +331,13 @@ impl RegexBuilder {
         } else {
             self.config.jit = JITChoice::Never;
         }
+        self
+    }
+
+    /// Additionally enable PCRE2's JIT for partial matching.
+    /// This works only together with `jit` set to true.
+    pub fn jit_partial_matching(&mut self, yes: bool) -> &mut RegexBuilder {
+        self.config.jit_partial_matching = yes;
         self
     }
 
@@ -425,6 +437,27 @@ impl Regex {
     /// ```
     pub fn is_match(&self, subject: &[u8]) -> Result<bool, Error> {
         self.is_match_at(subject, 0)
+    }
+
+    /// Returns true if and only if the regex fully or partially matches the
+    /// subject string given. A partial match occurs when there is a match
+    /// up to the end of a subject string, but more characters are needed to
+    /// match the entire pattern.
+    ///
+    /// # Example
+    ///
+    /// Test if given string can be a beginning of a valid telephone number:
+    ///
+    /// ```rust
+    /// # fn example() -> Result<(), ::pcre2::Error> {
+    /// use pcre2::bytes::Regex;
+    ///
+    /// let text = b"123-456-";
+    /// assert!(Regex::new(r"^\d{3}-\d{3}-\d{3}")?.is_partial_match(text)?);
+    /// # Ok(()) }; example().unwrap()
+    /// ```
+    pub fn is_partial_match(&self, subject: &[u8]) -> Result<bool, Error> {
+        self.is_partial_match_at(subject, 0)
     }
 
     /// Returns the start and end byte range of the leftmost-first match in
@@ -596,16 +629,19 @@ impl Regex {
 
 /// Advanced or  "lower level" search methods.
 impl Regex {
+
     /// Returns the same as is_match, but starts the search at the given
     /// offset.
     ///
     /// The significance of the starting point is that it takes the surrounding
     /// context into consideration. For example, the `\A` anchor can only
     /// match when `start == 0`.
-    pub fn is_match_at(
+    ///
+    fn is_match_at_imp(
         &self,
         subject: &[u8],
         start: usize,
+        partial: bool,
     ) -> Result<bool, Error> {
         assert!(
             start <= subject.len(),
@@ -618,6 +654,9 @@ impl Regex {
         if !self.config.utf_check {
             options |= PCRE2_NO_UTF_CHECK;
         }
+        if partial {
+            options |= PCRE2_PARTIAL_HARD;
+        }
 
         let match_data = self.match_data();
         let mut match_data = match_data.borrow_mut();
@@ -626,6 +665,34 @@ impl Regex {
         // `disable_utf_check` method, which propagates the safety contract to
         // the caller.
         Ok(unsafe { match_data.find(&self.code, subject, start, options)? })
+    }
+
+    /// Returns the same as is_match, but starts the search at the given
+    /// offset.
+    ///
+    /// The significance of the starting point is that it takes the surrounding
+    /// context into consideration. For example, the `\A` anchor can only
+    /// match when `start == 0`.
+    pub fn is_match_at(
+        &self,
+        subject: &[u8],
+        start: usize,
+    ) -> Result<bool, Error> {
+        self.is_match_at_imp(subject, start, false)
+    }
+
+    /// Returns the same as is_partial_match, but starts the search at the given
+    /// offset.
+    ///
+    /// The significance of the starting point is that it takes the surrounding
+    /// context into consideration. For example, the `\A` anchor can only
+    /// match when `start == 0`.
+    pub fn is_partial_match_at(
+        &self,
+        subject: &[u8],
+        start: usize,
+    ) -> Result<bool, Error> {
+        self.is_match_at_imp(subject, start, true)
     }
 
     /// Returns the same as find, but starts the search at the given
@@ -1151,6 +1218,18 @@ mod tests {
     }
 
     #[test]
+    fn partial() {
+        let re = RegexBuilder::new()
+            .build("ab$")
+            .unwrap();
+
+        assert!(re.is_partial_match(b("a")).unwrap());
+        assert!(re.is_partial_match(b("ab")).unwrap());
+        assert!(!re.is_partial_match(b("abc")).unwrap());
+        assert!(!re.is_partial_match(b("b")).unwrap());
+    }
+
+    #[test]
     fn crlf() {
         let re = RegexBuilder::new()
             .crlf(true)
@@ -1244,6 +1323,19 @@ mod tests {
                 .jit(true)
                 .build(r"\w")
                 .unwrap_err();
+        }
+    }
+
+    #[test]
+    fn jit_partial_matching() {
+        if is_jit_available() {
+            let re = RegexBuilder::new()
+                .jit(true)
+                .jit_partial_matching(true)
+                .build(r"[0-9][0-9][0-9]")
+                .unwrap();
+            assert!(!re.is_match(b("12")).unwrap());
+            assert!(re.is_partial_match(b("12")).unwrap());
         }
     }
 
