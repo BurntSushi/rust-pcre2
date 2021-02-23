@@ -20,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-pcre2 = "0.1"
+pcre2 = "0.2"
 ```
 
 and this to your crate root:
