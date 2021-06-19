@@ -647,7 +647,7 @@ impl Regex {
         }
         let ovector = match_data.ovector();
         let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject[s..e], s, e)))
+        Ok(Some(Match::new(&subject, s, e)))
     }
 
     /// This is like `captures`, but uses
@@ -694,7 +694,7 @@ impl Regex {
         }
         let ovector = locs.data.ovector();
         let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject[s..e], s, e)))
+        Ok(Some(Match::new(&subject, s, e)))
     }
 }
 
@@ -1302,5 +1302,46 @@ mod tests {
             .build(r"((((\w{10})){100}))+")
             .unwrap();
         assert!(re.is_match(hay.as_bytes()).unwrap());
+    }
+
+    #[test]
+    fn find_start_end_and_as_bytes() {
+        let hay =
+            "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let pattern = r"
+            (?x)    (?#: Allow comments and whitespace.)
+
+            [a-z]   (?#: Lowercase letter.)
+            +       (?#: One or more times.)
+            ";
+        let re = RegexBuilder::new()
+            .extended(true)
+            .utf(true)
+            .jit(true)
+            .build(pattern)
+            .unwrap();
+        let matched = re.find(hay.as_bytes()).unwrap().unwrap();
+        assert_eq!(matched.start(), 10);
+        assert_eq!(matched.end(), 10 + 26);
+        assert_eq!(matched.as_bytes(), b"abcdefghijklmnopqrstuvwxyz");
+    }
+
+    #[test]
+    fn find_utf_emoji_as_bytes() {
+        let hay = "0123456789😀👍🏼🎉abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let pattern = r"(*UTF)
+            (?x)    (?#: Allow comments and whitespace.)
+
+            [^\N{U+0000}-\N{U+007F}]    (?#: Non-ascii code points.)
+            +                           (?#: One or more times.)
+            ";
+        let re = RegexBuilder::new()
+            .extended(true)
+            .utf(true)
+            .jit(true)
+            .build(pattern)
+            .unwrap();
+        let matched = re.find(hay.as_bytes()).unwrap().unwrap();
+        assert_eq!(matched.as_bytes(), "😀👍🏼🎉".as_bytes());
     }
 }
