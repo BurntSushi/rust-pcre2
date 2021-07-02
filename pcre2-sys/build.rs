@@ -45,6 +45,7 @@ const FILES: &'static [&'static str] = &[
    "pcre2_newline.c",
    "pcre2_ord2utf.c",
    "pcre2_pattern_info.c",
+   "pcre2_script_run.c",
    "pcre2_serialize.c",
    "pcre2_string_utils.c",
    "pcre2_study.c",
@@ -99,7 +100,44 @@ fn main() {
         builder.define("HAVE_WINDOWS_H", "1");
     }
 
-    enable_jit(&target, &mut builder);
+    // Configure JIT according to https://www.pcre.org/current/doc/html/pcre2jit.html#SEC2.
+    // We disable unsupported targets despite `is_jit_available` because “if --enable-jit
+    // is set on an unsupported platform, compilation fails.”
+    match target.as_str() {
+          "aarch64-apple-ios"              // does not support executable pages due to vendor‘s terms
+        | "aarch64-apple-tvos"             // =
+        | "aarch64-apple-ios-sim"          // disabled for device–simulator consistency
+        | "x86_64-apple-ios"               // =
+        | "x86_64-apple-tvos"              // =
+        | "armv7-apple-ios"                // assumed equivalent to aarch64-apple-ios
+        | "armv7s-apple-ios"               // =
+        | "i386-apple-ios"                 // =
+        | "msp430-none-elf"
+        | "armv4t-unknown-linux-gnueabi"
+        | "thumbv4t-none-eabi"
+        | "wasm64-unknown-unknown"
+        | "asmjs-unknown-emscripten"
+        | "bpfel-unknown-none"
+        | "bpfeb-unknown-none"
+        | "hexagon-unknown-linux-musl"
+        | "sparc64-unknown-netbsd"
+        | "sparc64-unknown-openbsd"
+        | "sparc64-unknown-linux-gnu"
+        | "riscv64imac-unknown-none-elf"
+        | "riscv64gc-unknown-none-elf"
+        | "riscv32imc-unknown-none-elf"
+        | "riscv32imac-unknown-none-elf"
+        | "riscv32i-unknown-none-elf"
+        | "riscv32gc-unknown-linux-gnu"
+        | "riscv32gc-unknown-linux-musl"
+        | "riscv64gc-unknown-linux-musl"
+        | "riscv64gc-unknown-linux-gnu"
+        | "nvptx64-nvidia-cuda"
+        | "s390x-unknown-linux-gnu"
+        | "s390x-unknown-linux-musl"
+            => (),
+          _ => { builder.define("SUPPORT_JIT", "1"); },
+    }
 
     // Copy PCRE2 headers. Typically, `./configure` would do this for us
     // automatically, but since we're compiling by hand, we do it ourselves.
@@ -150,31 +188,5 @@ fn pcre2_sys_static() -> Option<bool> {
                 None
             }
         }
-    }
-}
-
-// On `aarch64-apple-ios` clang fails with the following error.
-//
-//     Undefined symbols for architecture arm64:
-//       "___clear_cache", referenced from:
-//           _sljit_generate_code in libforeign.a(pcre2_jit_compile.o)
-//     ld: symbol(s) not found for architecture arm64
-//
-// aarch64-apple-tvos         https://bugreports.qt.io/browse/QTBUG-62993?gerritReviewStatus=All
-// aarch64-apple-darwin       https://github.com/Homebrew/homebrew-core/pull/57419
-// x86_64-apple-ios           disabled for device–simulator consistency (not tested)
-// x86_64-apple-tvos          disabled for device–simulator consistency (not tested)
-// armv7-apple-ios            assumed equivalent to aarch64-apple-ios (not tested)
-// armv7s-apple-ios           assumed equivalent to aarch64-apple-ios (not tested)
-// i386-apple-ios             assumed equivalent to aarch64-apple-ios (not tested)
-// x86_64-apple-ios-macabi    disabled out of caution (not tested) (needs attention)
-//
-// We may want to monitor developments on the `aarch64-apple-darwin` front as they may end up
-// propagating to all `aarch64`-based targets and the `x86_64` equivalents.
-fn enable_jit(target: &str, builder: &mut cc::Build) {
-    if !target.starts_with("aarch64-apple") &&
-        !target.contains("apple-ios") &&
-        !target.contains("apple-tvos") {
-        builder.define("SUPPORT_JIT", "1");
     }
 }
