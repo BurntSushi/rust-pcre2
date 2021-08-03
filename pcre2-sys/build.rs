@@ -173,6 +173,7 @@ fn pcre2_sys_static() -> Option<bool> {
 // propagating to all `aarch64`-based targets and the `x86_64` equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
     if !target.starts_with("aarch64-apple") &&
+        !(target.starts_with("aarch64") && target.ends_with("musl")) &&
         !target.contains("apple-ios") &&
         !target.contains("apple-tvos") {
         builder.define("SUPPORT_JIT", "1");
