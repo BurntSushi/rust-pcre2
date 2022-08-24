@@ -169,13 +169,21 @@ fn pcre2_sys_static() -> Option<bool> {
 // i386-apple-ios             assumed equivalent to aarch64-apple-ios (not tested)
 // x86_64-apple-ios-macabi    disabled out of caution (not tested) (needs attention)
 //
+// On `aarch64-unknown-linux-musl` clang fails with the following error:
+//
+//      undefined symbol: __clear_cache
+//      >>> referenced by sljitNativeARM_64.c:333 (pcre2/src/sljit/sljitNativeARM_64.c:333)
+//      >>>               pcre2_jit_compile.o:(jit_compile) in archive /build/target/aarch64-unknown-linux-musl/release/deps/libpcre2_sys.rlib
+//      clang: error: linker command failed with exit code 1
+//
 // We may want to monitor developments on the `aarch64-apple-darwin` front as they may end up
 // propagating to all `aarch64`-based targets and the `x86_64` equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
-    if !target.starts_with("aarch64-apple") &&
-        !(target.starts_with("aarch64") && target.ends_with("musl")) &&
-        !target.contains("apple-ios") &&
-        !target.contains("apple-tvos") {
-        builder.define("SUPPORT_JIT", "1");
+    if target.starts_with("aarch64-apple") ||  target.contains("apple-ios") || target.contains("apple-tvos") {
+        return;
     }
+    if target.starts_with("aarch64") && target.ends_with("musl") {
+        return;
+    }
+    builder.define("SUPPORT_JIT", "1");
 }
