@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::iter::FusedIterator;
 use std::ops::Index;
 use std::sync::Arc;
 
@@ -55,6 +56,47 @@ impl<'s> Match<'s> {
         (self.start, self.end)
     }
 }
+///splitting
+/// test this  
+/// 
+#[derive(Clone)]
+pub struct Split<'r, 't> {
+    finder: Matches<'r, 't>,
+    last: usize,
+}
+
+impl<'r, 't> Iterator for Split<'r, 't> {
+
+    type Item = Result< &'t [u8], Error>;
+    fn next(&mut self) -> Option<Result< &'t [u8], Error>> {
+        let text = self.finder.subject;
+        match self.finder.next() {
+            None => {
+                if self.last > text.len() {
+                    None
+                } else {
+                    let s = &text[self.last..];
+                    self.last = text.len() + 1; // Next call will return None
+                    Some(Ok(s))
+                }
+            }
+            Some(m) => {
+                match m {
+                    Ok(mtch) => {
+                        let matched = &text[self.last..mtch.start()];
+                        self.last = mtch.end();
+                        Some(Ok(matched))
+                    },
+                    Err(err) => Some(Err(err)),
+                }
+                
+            }
+        }
+    }
+}
+
+impl<'r, 't> FusedIterator for Split<'r, 't> {}
+
 
 #[derive(Clone, Debug)]
 struct Config {
@@ -480,6 +522,12 @@ impl Regex {
             last_match: None,
         }
     }
+    ///splits regex or smth 
+    pub fn split<'r, 't>(&'r self, text: &'t [u8]) -> Split<'r, 't> {
+        Split { finder: self.find_iter(text), last: 0 }
+    }
+
+    
 
     /// Returns the capture groups corresponding to the leftmost-first
     /// match in `subject`. Capture group `0` always corresponds to the entire
@@ -1009,6 +1057,8 @@ impl<'s, 'i> Index<&'i str> for Captures<'s> {
 ///
 /// `'r` is the lifetime of the compiled regular expression and `'s` is the
 /// lifetime of the subject string.
+
+#[derive(Clone)]
 pub struct Matches<'r, 's> {
     re: &'r Regex,
     match_data: &'r RefCell<MatchData>,
@@ -1052,6 +1102,7 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
     }
 }
 
+impl<'r, 't> FusedIterator for Matches<'r, 't> {}
 /// An iterator that yields all non-overlapping capture groups matching a
 /// particular regular expression.
 ///
