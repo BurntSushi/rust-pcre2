@@ -567,7 +567,7 @@ impl Regex {
             new.extend_from_slice(&text[last_match..]);
             return Cow::Owned(new);
         }
-
+    
         // The slower path, which we use if the replacement needs access to
         // capture groups.
         let mut it = self.captures_iter(text).enumerate().peekable();
@@ -595,6 +595,19 @@ impl Regex {
         Cow::Owned(new)
     }
 
+    /// Replaces all non-overlapping matches in `text` with the replacement
+    /// provided. This is the same as calling `replacen` with `limit` set to
+    /// `0`.
+    ///
+    /// See the documentation for `replace` for details on how to access
+    /// capturing group matches in the replacement text.
+    pub fn replace_all<'t, R: Replacer>(
+        &self,
+        text: &'t [u8],
+        rep: R,
+    ) -> Cow<'t, [u8]> {
+        self.replacen(text, 0, rep)
+    }
 
     
 
