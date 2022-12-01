@@ -26,7 +26,7 @@ use crate::ffi::{Code, CompileContext, MatchConfig, MatchData};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Match<'s> {
     ///subject
-    pub subject: &'s [u8],
+    subject: &'s [u8],
     start: usize,
     end: usize,
 }
@@ -48,6 +48,11 @@ impl<'s> Match<'s> {
     #[inline]
     pub fn as_bytes(&self) -> &'s [u8] {
         &self.subject[self.start..self.end]
+    }
+    /// Returns the matched portion of the subject string.
+    #[inline]
+    pub fn subject(&self) -> &'s [u8] {
+        &self.subject
     }
 
     /// Creates a new match from the given subject string and byte offsets.
