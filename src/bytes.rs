@@ -64,9 +64,7 @@ impl<'s> Match<'s> {
         (self.start, self.end)
     }
 }
-///splitting
-/// test this  
-/// 
+///Split 
 #[derive(Clone)]
 pub struct Split<'r, 't> {
     finder: Matches<'r, 't>,
@@ -74,7 +72,6 @@ pub struct Split<'r, 't> {
 }
 
 impl<'r, 't> Iterator for Split<'r, 't> {
-
     type Item = Result< &'t [u8], Error>;
     fn next(&mut self) -> Option<Result< &'t [u8], Error>> {
         let text = self.finder.subject;
