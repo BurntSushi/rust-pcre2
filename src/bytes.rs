@@ -1,8 +1,12 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::iter::FusedIterator;
 use std::ops::Index;
 use std::sync::Arc;
+use crate::expand::expand_bytes;
+use crate::find_bytes::find_byte; 
 
 use log::debug;
 use pcre2_sys::{
@@ -44,6 +48,11 @@ impl<'s> Match<'s> {
     pub fn as_bytes(&self) -> &'s [u8] {
         &self.subject[self.start..self.end]
     }
+    /// Returns the matched portion of the subject string.
+    #[inline]
+    pub fn subject(&self) -> &'s [u8] {
+        &self.subject
+    }
 
     /// Creates a new match from the given subject string and byte offsets.
     fn new(subject: &'s [u8], start: usize, end: usize) -> Match<'s> {
@@ -55,6 +64,44 @@ impl<'s> Match<'s> {
         (self.start, self.end)
     }
 }
+///Split 
+#[derive(Clone)]
+pub struct Split<'r, 't> {
+    finder: Matches<'r, 't>,
+    last: usize,
+}
+
+impl<'r, 't> Iterator for Split<'r, 't> {
+    type Item = Result< &'t [u8], Error>;
+    fn next(&mut self) -> Option<Result< &'t [u8], Error>> {
+        let text = self.finder.subject;
+        match self.finder.next() {
+            None => {
+                if self.last > text.len() {
+                    None
+                } else {
+                    let s = &text[self.last..];
+                    self.last = text.len() + 1; // Next call will return None
+                    Some(Ok(s))
+                }
+            }
+            Some(m) => {
+                match m {
+                    Ok(mtch) => {
+                        let matched = &text[self.last..mtch.start()];
+                        self.last = mtch.end();
+                        Some(Ok(matched))
+                    },
+                    Err(err) => Some(Err(err)),
+                }
+                
+            }
+        }
+    }
+}
+
+impl<'r, 't> FusedIterator for Split<'r, 't> {}
+
 
 #[derive(Clone, Debug)]
 struct Config {
@@ -480,6 +527,109 @@ impl Regex {
             last_match: None,
         }
     }
+    /// Returns an iterator of substrings of `text` delimited by a match of the
+    /// regular expression. Namely, each element of the iterator corresponds to
+    /// text that *isn't* matched by the regular expression.
+    ///
+    /// This method will *not* copy the text given.
+    ///
+    /// # Example
+    ///
+    /// To split a string delimited by arbitrary amounts of spaces or tabs:
+    ///
+    /// ```rust
+    /// # use regex::bytes::Regex;
+    /// # fn main() {
+    /// let re = Regex::new(r"[ \t]+").unwrap();
+    /// let fields: Vec<&[u8]> = re.split(b"a b \t  c\td    e").collect();
+    /// assert_eq!(fields, vec![
+    ///     &b"a"[..], &b"b"[..], &b"c"[..], &b"d"[..], &b"e"[..],
+    /// ]);
+    /// # }
+    /// ```
+    pub fn split<'r, 't>(&'r self, text: &'t [u8]) -> Split<'r, 't> {
+        Split { finder: self.find_iter(text), last: 0 }
+    }
+
+    /// Replaces at most `limit` non-overlapping matches in `text` with the
+    /// replacement provided. If `limit` is 0, then all non-overlapping matches
+    /// are replaced.
+    ///
+    /// See the documentation for `replace` for details on how to access
+    /// capturing group matches in the replacement text.
+    pub fn replacen<'t, R: Replacer>(
+        &self,
+        text: &'t [u8],
+        limit: usize,
+        mut rep: R,
+    ) -> Cow<'t, [u8]> {
+        if let Some(rep) = rep.no_expansion() {
+            let mut it = self.find_iter(text).enumerate().peekable();
+            if it.peek().is_none() {
+                return Cow::Borrowed(text);
+            }
+            let mut new = Vec::with_capacity(text.len());
+            let mut last_match = 0;
+            for (i, m) in it {
+                match m {
+                    Ok(m) => {
+                        new.extend_from_slice(&text[last_match..m.start()]);
+                        new.extend_from_slice(&rep);
+                        last_match = m.end();
+                        if limit > 0 && i >= limit - 1 {
+                            break;
+                        }
+                    },
+                    Err(err) => break,
+                }
+               
+            }
+            new.extend_from_slice(&text[last_match..]);
+            return Cow::Owned(new);
+        }
+    
+        // The slower path, which we use if the replacement needs access to
+        // capture groups.
+        let mut it = self.captures_iter(text).enumerate().peekable();
+        if it.peek().is_none() {
+            return Cow::Borrowed(text);
+        }
+        let mut new = Vec::with_capacity(text.len());
+        let mut last_match = 0;
+        for (i, cap) in it {
+            // unwrap on 0 is OK because captures only reports matches
+            match cap {
+                Ok(cap) => {
+                    let m = cap.get(0).unwrap();
+                    new.extend_from_slice(&text[last_match..m.start()]);
+                    rep.replace_append(&cap, &mut new);
+                    last_match = m.end();
+                    if limit > 0 && i >= limit - 1 {
+                        break;
+                    }
+                },
+                Err(err) => break,
+            } 
+        }
+        new.extend_from_slice(&text[last_match..]);
+        Cow::Owned(new)
+    }
+
+    /// Replaces all non-overlapping matches in `text` with the replacement
+    /// provided. This is the same as calling `replacen` with `limit` set to
+    /// `0`.
+    ///
+    /// See the documentation for `replace` for details on how to access
+    /// capturing group matches in the replacement text.
+    pub fn replace_all<'t, R: Replacer>(
+        &self,
+        text: &'t [u8],
+        rep: R,
+    ) -> Cow<'t, [u8]> {
+        self.replacen(text, 0, rep)
+    }
+
+    
 
     /// Returns the capture groups corresponding to the leftmost-first
     /// match in `subject`. Capture group `0` always corresponds to the entire
@@ -913,6 +1063,30 @@ impl<'s> Captures<'s> {
     pub fn len(&self) -> usize {
         self.locs.len()
     }
+    // Expands all instances of `$name` in `replacement` to the corresponding
+    /// capture group `name`, and writes them to the `dst` buffer given.
+    ///
+    /// `name` may be an integer corresponding to the index of the capture
+    /// group (counted by order of opening parenthesis where `0` is the
+    /// entire match) or it can be a name (consisting of letters, digits or
+    /// underscores) corresponding to a named capture group.
+    ///
+    /// If `name` isn't a valid capture group (whether the name doesn't exist
+    /// or isn't a valid index), then it is replaced with the empty string.
+    ///
+    /// The longest possible name consisting of the characters `[_0-9A-Za-z]`
+    /// is used. e.g., `$1a` looks up the capture group named `1a` and not the
+    /// capture group at index `1`. To exert more precise control over the
+    /// name, or to refer to a capture group name that uses characters outside
+    /// of `[_0-9A-Za-z]`, use braces, e.g., `${1}a` or `${foo[bar].baz}`. When
+    /// using braces, any sequence of valid UTF-8 bytes is permitted. If the
+    /// sequence does not refer to a capture group name in the corresponding
+    /// regex, then it is replaced with an empty string.
+    ///
+    /// To write a literal `$` use `$$`.
+    pub fn expand(&self, replacement: &[u8], dst: &mut Vec<u8>) {
+        expand_bytes(self, replacement, dst)
+    }
 }
 
 impl<'s> fmt::Debug for Captures<'s> {
@@ -1009,6 +1183,8 @@ impl<'s, 'i> Index<&'i str> for Captures<'s> {
 ///
 /// `'r` is the lifetime of the compiled regular expression and `'s` is the
 /// lifetime of the subject string.
+
+#[derive(Clone)]
 pub struct Matches<'r, 's> {
     re: &'r Regex,
     match_data: &'r RefCell<MatchData>,
@@ -1052,6 +1228,7 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
     }
 }
 
+impl<'r, 't> FusedIterator for Matches<'r, 't> {}
 /// An iterator that yields all non-overlapping capture groups matching a
 /// particular regular expression.
 ///
@@ -1381,5 +1558,163 @@ mod tests {
             .build(r"((((\w{10})){100}))+")
             .unwrap();
         assert!(re.is_match(hay.as_bytes()).unwrap());
+    }
+}
+
+/// Replacer describes types that can be used to replace matches in a byte
+/// string.
+///
+/// In general, users of this crate shouldn't need to implement this trait,
+/// since implementations are already provided for `&[u8]` along with other
+/// variants of bytes types and `FnMut(&Captures) -> Vec<u8>` (or any
+/// `FnMut(&Captures) -> T` where `T: AsRef<[u8]>`), which covers most use cases.
+pub trait Replacer {
+    /// Appends text to `dst` to replace the current match.
+    ///
+    /// The current match is represented by `caps`, which is guaranteed to
+    /// have a match at capture group `0`.
+    ///
+    /// For example, a no-op replacement would be
+    /// `dst.extend(&caps[0])`.
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>);
+
+    /// Return a fixed unchanging replacement byte string.
+    ///
+    /// When doing replacements, if access to `Captures` is not needed (e.g.,
+    /// the replacement byte string does not need `$` expansion), then it can
+    /// be beneficial to avoid finding sub-captures.
+    ///
+    /// In general, this is called once for every call to `replacen`.
+    fn no_expansion<'r>(&'r mut self) -> Option<Cow<'r, [u8]>> {
+        None
+    }
+
+    /// Return a `Replacer` that borrows and wraps this `Replacer`.
+    ///
+    /// This is useful when you want to take a generic `Replacer` (which might
+    /// not be cloneable) and use it without consuming it, so it can be used
+    /// more than once.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use regex::bytes::{Regex, Replacer};
+    ///
+    /// fn replace_all_twice<R: Replacer>(
+    ///     re: Regex,
+    ///     src: &[u8],
+    ///     mut rep: R,
+    /// ) -> Vec<u8> {
+    ///     let dst = re.replace_all(src, rep.by_ref());
+    ///     let dst = re.replace_all(&dst, rep.by_ref());
+    ///     dst.into_owned()
+    /// }
+    /// ```
+    fn by_ref<'r>(&'r mut self) -> ReplacerRef<'r, Self> {
+        ReplacerRef(self)
+    }
+}
+
+/// By-reference adaptor for a `Replacer`
+///
+/// Returned by [`Replacer::by_ref`](trait.Replacer.html#method.by_ref).
+#[derive(Debug)]
+pub struct ReplacerRef<'a, R: ?Sized>(&'a mut R);
+
+impl<'a, R: Replacer + ?Sized + 'a> Replacer for ReplacerRef<'a, R> {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        self.0.replace_append(caps, dst)
+    }
+    fn no_expansion<'r>(&'r mut self) -> Option<Cow<'r, [u8]>> {
+        self.0.no_expansion()
+    }
+}
+
+impl<'a> Replacer for &'a [u8] {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        caps.expand(*self, dst);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        no_expansion(self)
+    }
+}
+
+impl<'a> Replacer for &'a Vec<u8> {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        caps.expand(*self, dst);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        no_expansion(self)
+    }
+}
+
+impl Replacer for Vec<u8> {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        caps.expand(self, dst);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        no_expansion(self)
+    }
+}
+
+impl<'a> Replacer for Cow<'a, [u8]> {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        caps.expand(self.as_ref(), dst);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        no_expansion(self)
+    }
+}
+
+impl<'a> Replacer for &'a Cow<'a, [u8]> {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        caps.expand(self.as_ref(), dst);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        no_expansion(self)
+    }
+}
+
+fn no_expansion<T: AsRef<[u8]>>(t: &T) -> Option<Cow<'_, [u8]>> {
+    let s = t.as_ref();
+    match find_byte(b'$', s) {
+        Some(_) => None,
+        None => Some(Cow::Borrowed(s)),
+    }
+}
+
+impl<F, T> Replacer for F
+where
+    F: FnMut(&Captures<'_>) -> T,
+    T: AsRef<[u8]>,
+{
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut Vec<u8>) {
+        dst.extend_from_slice((*self)(caps).as_ref());
+    }
+}
+
+/// `NoExpand` indicates literal byte string replacement.
+///
+/// It can be used with `replace` and `replace_all` to do a literal byte string
+/// replacement without expanding `$name` to their corresponding capture
+/// groups. This can be both convenient (to avoid escaping `$`, for example)
+/// and performant (since capture groups don't need to be found).
+///
+/// `'t` is the lifetime of the literal text.
+#[derive(Clone, Debug)]
+pub struct NoExpand<'t>(pub &'t [u8]);
+
+impl<'t> Replacer for NoExpand<'t> {
+    fn replace_append(&mut self, _: &Captures<'_>, dst: &mut Vec<u8>) {
+        dst.extend_from_slice(self.0);
+    }
+
+    fn no_expansion(&mut self) -> Option<Cow<'_, [u8]>> {
+        Some(Cow::Borrowed(self.0))
     }
 }
