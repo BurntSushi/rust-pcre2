@@ -25,7 +25,6 @@ use crate::ffi::{Code, CompileContext, MatchConfig, MatchData};
 /// of the subject string.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Match<'s> {
-    ///subject
     subject: &'s [u8],
     start: usize,
     end: usize,
