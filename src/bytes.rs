@@ -527,7 +527,26 @@ impl Regex {
             last_match: None,
         }
     }
-    ///splits regex or smth 
+    /// Returns an iterator of substrings of `text` delimited by a match of the
+    /// regular expression. Namely, each element of the iterator corresponds to
+    /// text that *isn't* matched by the regular expression.
+    ///
+    /// This method will *not* copy the text given.
+    ///
+    /// # Example
+    ///
+    /// To split a string delimited by arbitrary amounts of spaces or tabs:
+    ///
+    /// ```rust
+    /// # use regex::bytes::Regex;
+    /// # fn main() {
+    /// let re = Regex::new(r"[ \t]+").unwrap();
+    /// let fields: Vec<&[u8]> = re.split(b"a b \t  c\td    e").collect();
+    /// assert_eq!(fields, vec![
+    ///     &b"a"[..], &b"b"[..], &b"c"[..], &b"d"[..], &b"e"[..],
+    /// ]);
+    /// # }
+    /// ```
     pub fn split<'r, 't>(&'r self, text: &'t [u8]) -> Split<'r, 't> {
         Split { finder: self.find_iter(text), last: 0 }
     }
