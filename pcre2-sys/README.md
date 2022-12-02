@@ -4,7 +4,7 @@ Bindings for [PCRE2](https://www.pcre.org/).
 
 [![Linux build status](https://api.travis-ci.org/BurntSushi/rust-pcre2.png)](https://travis-ci.org/BurntSushi/rust-pcre2)
 [![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-pcre2?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-pcre2)
-[![](https://meritbadge.herokuapp.com/pcre2-sys)](https://crates.io/crates/pcre2-sys)
+[![](https://img.shields.io/crates/v/pcre2-sys.svg)](https://crates.io/crates/pcre2-sys)
 
 Dual-licensed under MIT or the [UNLICENSE](https://unlicense.org/).
 
@@ -21,12 +21,6 @@ Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 pcre2-sys = "0.2"
-```
-
-and this to your crate root:
-
-```rust
-extern crate pcre2_sys;
 ```
 
 
@@ -56,7 +50,7 @@ may work, and PRs to support them are welcome.
 
 If you're compiling this crate on Windows with the GNU toolchain, then you'll
 need to make sure you have a compatible C compiler installed, such as the one
-provided by the [mingw-w64](http://mingw-w64.org) project.
+provided by the [MinGW-w64](https://www.mingw-w64.org/) project.
 
 Set the `PCRE2_SYS_DEBUG` flag to forcefully enable debug symbols when doing a
 static build, even when compiling in release mode.

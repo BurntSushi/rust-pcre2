@@ -8,7 +8,7 @@ homepage = "https://github.com/BurntSushi/rust-pcre2"
 repository = "https://github.com/BurntSushi/rust-pcre2"
 readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit"]
-license = "Unlicense/MIT"
+license = "Unlicense OR MIT"
 categories = ["external-ffi-bindings"]
 edition = "2018"
 
