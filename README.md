@@ -2,9 +2,8 @@ pcre2
 =====
 A high level Rust wrapper library for [PCRE2](https://www.pcre.org/).
 
-[![Linux build status](https://api.travis-ci.org/BurntSushi/rust-pcre2.png)](https://travis-ci.org/BurntSushi/rust-pcre2)
-[![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-pcre2?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-pcre2)
-[![](https://meritbadge.herokuapp.com/pcre2)](https://crates.io/crates/pcre2)
+[![Build status](https://github.com/BurntSushi/rust-pcre2/workflows/ci/badge.svg)](https://github.com/BurntSushi/rust-pcre2/actions)
+[![crates.io](https://img.shields.io/crates/v/pcre2.svg)](https://crates.io/crates/pcre2)
 
 Dual-licensed under MIT or the [UNLICENSE](https://unlicense.org/).
 
@@ -16,18 +15,7 @@ https://docs.rs/pcre2
 
 ### Usage
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-pcre2 = "0.2"
-```
-
-and this to your crate root:
-
-```rust
-extern crate pcre2;
-```
+Run `cargo add pcre2` to add this crate to your `Cargo.toml` file.
 
 
 ### Notes
