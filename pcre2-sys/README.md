@@ -4,7 +4,7 @@ Bindings for [PCRE2](https://www.pcre.org/).
 
 [![Linux build status](https://api.travis-ci.org/BurntSushi/rust-pcre2.svg)](https://travis-ci.org/BurntSushi/rust-pcre2)
 [![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-pcre2?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-pcre2)
-[![](https://img.shields.io/crates/v/pcre2-sys.svg)](https://crates.io/crates/pcre2-sys)
+[![crates.io](https://img.shields.io/crates/v/pcre2-sys.svg)](https://crates.io/crates/pcre2-sys)
 
 Dual-licensed under MIT or the [UNLICENSE](https://unlicense.org/).
 
