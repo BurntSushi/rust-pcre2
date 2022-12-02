@@ -2,7 +2,7 @@ pcre2
 =====
 A high level Rust wrapper library for [PCRE2](https://www.pcre.org/).
 
-[![Linux build status](https://api.travis-ci.org/BurntSushi/rust-pcre2.png)](https://travis-ci.org/BurntSushi/rust-pcre2)
+[![Linux build status](https://api.travis-ci.org/BurntSushi/rust-pcre2.svg)](https://travis-ci.org/BurntSushi/rust-pcre2)
 [![Windows build status](https://ci.appveyor.com/api/projects/status/github/BurntSushi/rust-pcre2?svg=true)](https://ci.appveyor.com/project/BurntSushi/rust-pcre2)
 [![crates.io](https://img.shields.io/crates/v/pcre2.svg)](https://crates.io/crates/pcre2)
 
