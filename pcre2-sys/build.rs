@@ -118,15 +118,28 @@ fn pcre2_sys_static() -> Option<bool> {
 // armv7s-apple-ios           assumed equivalent to aarch64-apple-ios (not tested)
 // i386-apple-ios             assumed equivalent to aarch64-apple-ios (not tested)
 // x86_64-apple-ios-macabi    disabled out of caution (not tested) (needs attention)
+// aarch64-linux-android      does not build
+// armv7-linux-androideabi    does not build
+// aarch64-unknown-linux-musl does not build
 //
 // We may want to monitor developments on the `aarch64-apple-darwin` front as
 // they may end up propagating to all `aarch64`-based targets and the `x86_64`
 // equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
-    if !target.starts_with("aarch64-apple")
-        && !target.contains("apple-ios")
-        && !target.contains("apple-tvos")
-    {
-        builder.define("SUPPORT_JIT", "1");
+    if target.starts_with("aarch64-apple") {
+        return;
     }
+    if target == "aarch64-linux-android" {
+        return;
+    }
+    if target == "armv7-linux-androideabi" {
+        return;
+    }
+    if target == "aarch64-unknown-linux-musl" {
+        return;
+    }
+    if target.contains("apple-ios") || target.contains("apple-tvos") {
+        return;
+    }
+    builder.define("SUPPORT_JIT", "1");
 }
