@@ -170,6 +170,7 @@ fn pcre2_sys_static() -> Option<bool> {
 // x86_64-apple-ios-macabi    disabled out of caution (not tested) (needs attention)
 // aarch64-linux-android
 // armv7-linux-androideabi
+// aarch64-unknown-linux-musl
 //
 // We may want to monitor developments on the `aarch64-apple-darwin` front as they may end up
 // propagating to all `aarch64`-based targets and the `x86_64` equivalents.
@@ -177,6 +178,7 @@ fn enable_jit(target: &str, builder: &mut cc::Build) {
     if !target.starts_with("aarch64-apple") &&
         target != "aarch64-linux-android" &&
         target != "armv7-linux-androideabi" &&
+        target != "aarch64-unknown-linux-musl" &&
         !target.contains("apple-ios") &&
         !target.contains("apple-tvos") {
         builder.define("SUPPORT_JIT", "1");
