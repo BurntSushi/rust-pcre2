@@ -25,3 +25,4 @@ pub mod bytes;
 mod error;
 mod ffi;
 mod pool;
+mod regex_impl;
