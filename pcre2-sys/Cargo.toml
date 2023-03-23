@@ -18,3 +18,6 @@ libc = "0.2.146"
 [build-dependencies]
 cc = { version = "1.0.73", features = ["parallel"] }
 pkg-config = "0.3.27"
+
+[features]
+utf32 = []

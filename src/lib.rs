@@ -26,3 +26,9 @@ mod error;
 mod ffi;
 mod pool;
 mod regex_impl;
+
+/**
+PCRE2 regular expressions for matching on UTF-32 slices.
+*/
+#[cfg(feature = "utf32")]
+pub mod utf32;

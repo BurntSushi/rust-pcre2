@@ -14,6 +14,73 @@ use std::{
 };
 use {libc::c_void, pcre2_sys::*};
 
+pub trait NameTableEntry {
+    /// The index of the named subpattern.
+    fn index(&self) -> usize;
+
+    /// The name of the named subpattern.
+    fn name(&self) -> String;
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+pub struct name_table_entry_8 {
+    match_index_msb: u8,
+    match_index_lsb: u8,
+
+    // In C, the 'name' field is a flexible array member.
+    // This does not contribute to the sizeof the struct.
+    name: u8,
+}
+
+#[allow(non_camel_case_types)]
+#[repr(C)]
+pub struct name_table_entry_32 {
+    match_index: u32,
+    name: u32, // See above re: flexible array member
+}
+
+impl NameTableEntry for name_table_entry_8 {
+    fn index(&self) -> usize {
+        ((self.match_index_msb as usize) << 8)
+            | (self.match_index_lsb as usize)
+    }
+
+    fn name(&self) -> String {
+        // The name is nul-terminated.
+        let name = &self.name as *const u8;
+        let mut len = 0;
+        while unsafe { *name.offset(len as isize) } != 0 {
+            len += 1;
+        }
+        let bytes = unsafe { slice::from_raw_parts(name, len) };
+        String::from_utf8_lossy(bytes).into_owned()
+    }
+}
+
+impl NameTableEntry for name_table_entry_32 {
+    fn index(&self) -> usize {
+        self.match_index as usize
+    }
+
+    fn name(&self) -> String {
+        // The name is nul-terminated.
+        let replacement: char = '\u{FFFD}';
+        let name = &self.name as *const u32;
+        let mut len = 0;
+        let mut result = String::new();
+        loop {
+            let c = unsafe { *name.offset(len) };
+            if c == 0 {
+                break;
+            }
+            result.push(char::from_u32(c).unwrap_or(replacement));
+            len += 1;
+        }
+        result
+    }
+}
+
 #[allow(non_camel_case_types)]
 pub trait CodeUnitWidth: std::fmt::Debug + 'static {
     type pcre2_code: UnwindSafe + RefUnwindSafe;
@@ -21,7 +88,9 @@ pub trait CodeUnitWidth: std::fmt::Debug + 'static {
     type pcre2_match_context;
     type pcre2_match_data;
     type pcre2_jit_stack;
+    type PCRE2_CHAR;
     type PCRE2_SPTR;
+    type name_table_entry: NameTableEntry;
     type SubjectChar: Copy;
     type Pattern: Clone + std::fmt::Debug;
 
@@ -104,14 +173,15 @@ pub trait CodeUnitWidth: std::fmt::Debug + 'static {
 
 #[derive(Debug)]
 pub struct CodeUnitWidth8;
-
 impl CodeUnitWidth for CodeUnitWidth8 {
     type pcre2_code = pcre2_code_8;
+    type PCRE2_CHAR = PCRE2_UCHAR8;
     type PCRE2_SPTR = PCRE2_SPTR8;
     type pcre2_compile_context = pcre2_compile_context_8;
     type pcre2_match_context = pcre2_match_context_8;
     type pcre2_match_data = pcre2_match_data_8;
     type pcre2_jit_stack = pcre2_jit_stack_8;
+    type name_table_entry = name_table_entry_8;
     type SubjectChar = u8;
     type Pattern = String;
 
@@ -120,7 +190,7 @@ impl CodeUnitWidth for CodeUnitWidth8 {
         // Escape bytes.
         let mut s = String::new();
         for &b in subject {
-            let escaped: Vec<u8> = escape_default(b).collect();
+            let escaped = escape_default(b).collect::<Vec<_>>();
             s.push_str(&String::from_utf8_lossy(&escaped));
         }
         s
@@ -241,6 +311,153 @@ impl CodeUnitWidth for CodeUnitWidth8 {
         arg1: *mut Self::pcre2_match_data,
     ) -> u32 {
         pcre2_get_ovector_count_8(arg1)
+    }
+}
+
+#[derive(Debug)]
+pub struct CodeUnitWidth32;
+impl CodeUnitWidth for CodeUnitWidth32 {
+    type pcre2_code = pcre2_code_32;
+    type PCRE2_CHAR = PCRE2_UCHAR32;
+    type PCRE2_SPTR = PCRE2_SPTR32;
+    type pcre2_compile_context = pcre2_compile_context_32;
+    type pcre2_match_context = pcre2_match_context_32;
+    type pcre2_match_data = pcre2_match_data_32;
+    type pcre2_jit_stack = pcre2_jit_stack_32;
+    type name_table_entry = name_table_entry_32;
+    type SubjectChar = char;
+    type Pattern = Box<[char]>;
+
+    fn escape_subject(subject: &[Self::SubjectChar]) -> String {
+        use std::ascii::escape_default;
+        // Escape bytes.
+        let mut s = String::new();
+        for &c in subject {
+            let mut bytes = [0; 4];
+            for &b in c.encode_utf8(&mut bytes).as_bytes() {
+                // Escape the byte.
+                let escaped = escape_default(b).collect::<Vec<_>>();
+                s.push_str(&String::from_utf8_lossy(&escaped));
+            }
+        }
+        s
+    }
+
+    fn pattern_to_sptr_len(
+        pattern: &Self::Pattern,
+    ) -> (Self::PCRE2_SPTR, usize) {
+        (pattern.as_ptr() as *const u32, pattern.len())
+    }
+
+    fn subject_to_sptr_len(
+        subject: &[Self::SubjectChar],
+    ) -> (Self::PCRE2_SPTR, usize) {
+        (subject.as_ptr() as *const u32, subject.len())
+    }
+
+    unsafe fn pcre2_config(
+        arg1: u32,
+        arg2: *mut ::libc::c_void,
+    ) -> ::libc::c_int {
+        pcre2_config_32(arg1, arg2)
+    }
+    unsafe fn pcre2_code_free(arg1: *mut Self::pcre2_code) {
+        pcre2_code_free_32(arg1)
+    }
+    unsafe fn pcre2_compile(
+        arg1: Self::PCRE2_SPTR,
+        arg2: usize,
+        arg3: u32,
+        arg4: *mut ::libc::c_int,
+        arg5: *mut ::libc::size_t,
+        arg6: *mut Self::pcre2_compile_context,
+    ) -> *mut Self::pcre2_code {
+        pcre2_compile_32(arg1, arg2, arg3, arg4, arg5, arg6)
+    }
+
+    unsafe fn pcre2_jit_stack_create(
+        arg1: ::libc::size_t,
+        arg2: ::libc::size_t,
+    ) -> *mut Self::pcre2_jit_stack {
+        pcre2_jit_stack_create_32(arg1, arg2, ptr::null_mut())
+    }
+    unsafe fn pcre2_jit_compile(
+        arg1: *mut Self::pcre2_code,
+        arg2: u32,
+    ) -> ::libc::c_int {
+        pcre2_jit_compile_32(arg1, arg2)
+    }
+    unsafe fn pcre2_jit_stack_assign(
+        arg1: *mut Self::pcre2_match_context,
+        arg3: *mut ::libc::c_void,
+    ) {
+        pcre2_jit_stack_assign_32(arg1, None, arg3)
+    }
+    unsafe fn pcre2_jit_stack_free(arg1: *mut Self::pcre2_jit_stack) {
+        pcre2_jit_stack_free_32(arg1)
+    }
+
+    unsafe fn pcre2_pattern_info(
+        arg1: *const Self::pcre2_code,
+        arg2: u32,
+        arg3: *mut ::libc::c_void,
+    ) -> ::libc::c_int {
+        pcre2_pattern_info_32(arg1, arg2, arg3)
+    }
+
+    unsafe fn pcre2_match(
+        arg1: *const Self::pcre2_code,
+        arg2: Self::PCRE2_SPTR,
+        arg3: usize,
+        arg4: usize,
+        arg5: u32,
+        arg6: *mut Self::pcre2_match_data,
+        arg7: *mut Self::pcre2_match_context,
+    ) -> ::libc::c_int {
+        pcre2_match_32(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+    }
+
+    unsafe fn pcre2_compile_context_create() -> *mut Self::pcre2_compile_context
+    {
+        pcre2_compile_context_create_32(ptr::null_mut())
+    }
+    unsafe fn pcre2_match_context_free(arg1: *mut Self::pcre2_match_context) {
+        pcre2_match_context_free_32(arg1)
+    }
+
+    unsafe fn pcre2_set_newline(
+        arg1: *mut Self::pcre2_compile_context,
+        arg2: u32,
+    ) -> ::libc::c_int {
+        pcre2_set_newline_32(arg1, arg2)
+    }
+    unsafe fn pcre2_compile_context_free(
+        arg1: *mut Self::pcre2_compile_context,
+    ) {
+        pcre2_compile_context_free_32(arg1)
+    }
+    unsafe fn pcre2_match_context_create() -> *mut Self::pcre2_match_context {
+        pcre2_match_context_create_32(ptr::null_mut())
+    }
+
+    unsafe fn pcre2_match_data_create_from_pattern(
+        arg1: *const Self::pcre2_code,
+    ) -> *mut Self::pcre2_match_data {
+        pcre2_match_data_create_from_pattern_32(arg1, ptr::null_mut())
+    }
+    unsafe fn pcre2_match_data_free(arg1: *mut Self::pcre2_match_data) {
+        pcre2_match_data_free_32(arg1)
+    }
+
+    unsafe fn pcre2_get_ovector_pointer(
+        arg1: *mut Self::pcre2_match_data,
+    ) -> *mut usize {
+        pcre2_get_ovector_pointer_32(arg1)
+    }
+    unsafe fn pcre2_get_ovector_count(
+        arg1: *mut Self::pcre2_match_data,
+    ) -> u32 {
+        pcre2_get_ovector_count_32(arg1)
     }
 }
 
@@ -380,25 +597,20 @@ impl<W: CodeUnitWidth> Code<W> {
         // and search for PCRE2_INFO_NAMETABLE.
 
         let name_count = self.name_count()?;
-        let size = self.name_entry_size()?;
-        let table = unsafe {
-            slice::from_raw_parts(self.raw_name_table()?, name_count * size)
-        };
-
+        let name_entry_size_in_bytes =
+            self.name_entry_size()? * std::mem::size_of::<W::PCRE2_CHAR>();
+        let name_table = self.raw_name_table()?;
         let mut names = vec![None; self.capture_count()?];
         for i in 0..name_count {
-            let entry = &table[i * size..(i + 1) * size];
-            let name = &entry[2..];
-            let nulat = name
-                .iter()
-                .position(|&b| b == 0)
-                .expect("a NUL in name table entry");
-            let index = (entry[0] as usize) << 8 | (entry[1] as usize);
-            names[index] = String::from_utf8(name[..nulat].to_vec())
-                .map(Some)
-                // We require our pattern to be valid UTF-8, so all capture
-                // names should also be valid UTF-8.
-                .expect("valid UTF-8 for capture name");
+            let entry = unsafe {
+                name_table
+                    .cast::<u8>()
+                    .add(i * name_entry_size_in_bytes)
+                    .cast::<W::name_table_entry>()
+                    .as_ref()
+                    .unwrap()
+            };
+            names[entry.index()] = Some(entry.name());
         }
         Ok(names)
     }
@@ -408,32 +620,22 @@ impl<W: CodeUnitWidth> Code<W> {
         self.code
     }
 
-    /// Returns the raw name table, where each entry in the table corresponds
-    /// to a mapping between a named capturing group and the index of that
-    /// capturing group. The encoding for each item is as follows:
-    ///
-    /// * 2 bytes encoding the capture index (big-endian)
-    /// * N bytes encoding the code units of the name
-    /// * 1 byte for the NUL terminator
-    /// * M padding bytes, corresponding to the difference in length between
-    ///   this name and the longest name.
-    ///
-    /// In particular, each entry uses the same number of bytes.
+    /// Returns a pointer to the array of name table entries.
     ///
     /// Entries are in alphabetical order.
-    fn raw_name_table(&self) -> Result<*const u8, Error> {
-        let mut bytes: *const u8 = ptr::null();
+    fn raw_name_table(&self) -> Result<*const W::name_table_entry, Error> {
+        let mut table: *const W::name_table_entry = ptr::null();
         let rc = unsafe {
             W::pcre2_pattern_info(
                 self.as_ptr(),
                 PCRE2_INFO_NAMETABLE,
-                &mut bytes as *mut *const u8 as *mut c_void,
+                &mut table as *mut *const W::name_table_entry as *mut c_void,
             )
         };
         if rc != 0 {
             Err(Error::info(rc))
         } else {
-            Ok(bytes)
+            Ok(table)
         }
     }
 
@@ -454,12 +656,7 @@ impl<W: CodeUnitWidth> Code<W> {
         }
     }
 
-    /// Returns the entry size of each name in the name table.
-    ///
-    /// This appears to correspond to `3` plus the size of the longest named
-    /// capturing group. The extra 3 bytes correspond to a NUL terminator and
-    /// two prefix bytes corresponding to a big-endian encoding of the index
-    /// of the capture group.
+    /// Returns the entry size of each name in the name table, in code units.
     fn name_entry_size(&self) -> Result<usize, Error> {
         let mut size: u32 = 0;
         let rc = unsafe {
