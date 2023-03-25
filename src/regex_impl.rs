@@ -9,7 +9,8 @@ use std::{
 use log::debug;
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
-    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET, PCRE2_UTF,
+    PCRE2_MULTILINE, PCRE2_NEVER_UTF, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP,
+    PCRE2_UNSET, PCRE2_UTF,
 };
 
 use crate::{
@@ -75,6 +76,8 @@ struct Config {
     ucp: bool,
     /// PCRE2_UTF
     utf: bool,
+    /// PCRE2_NEVER_UTF
+    block_utf_pattern_directive: bool,
     /// use pcre2_jit_compile
     jit: JITChoice,
     /// Match-time specific configuration knobs.
@@ -101,6 +104,7 @@ impl Default for Config {
             crlf: false,
             ucp: false,
             utf: false,
+            block_utf_pattern_directive: false,
             jit: JITChoice::Never,
             match_config: MatchConfig::default(),
         }
@@ -153,6 +157,9 @@ impl<W: CodeUnitWidth> RegexBuilder<W> {
         }
         if self.config.utf {
             options |= PCRE2_UTF;
+        }
+        if self.config.block_utf_pattern_directive {
+            options |= PCRE2_NEVER_UTF;
         }
 
         let mut ctx = CompileContext::new();
@@ -281,6 +288,16 @@ impl<W: CodeUnitWidth> RegexBuilder<W> {
     /// This is disabled by default.
     pub fn utf(&mut self, yes: bool) -> &mut Self {
         self.config.utf = yes;
+        self
+    }
+
+    /// Prevent patterns from opting in to UTF matching mode in spite of any flags.
+    ///
+    /// This causes the directive `(*UTF)` in the pattern to emit an error.
+    /// This does not affect any other flags controlling UTF matching mode;
+    /// it merely disables a particular syntax item in the pattern.
+    pub fn block_utf_pattern_directive(&mut self, yes: bool) -> &mut Self {
+        self.config.block_utf_pattern_directive = yes;
         self
     }
 
