@@ -32,6 +32,34 @@ pub fn version() -> (u32, u32) {
     (PCRE2_MAJOR, PCRE2_MINOR)
 }
 
+/// Escapes all regular expression meta characters in `pattern`.
+///
+/// The string returned may be safely used as a literal in a regular
+/// expression.
+pub fn escape(pattern: &str) -> String {
+    fn is_meta_character(c: char) -> bool {
+        match c {
+            '\\' | '.' | '+' | '*' | '?' | '(' | ')' | '|' | '[' | ']'
+            | '{' | '}' | '^' | '$' | '#' | '-' => true,
+            _ => false,
+        }
+    }
+
+    // Is it really true that PCRE2 doesn't have an API routine to
+    // escape a pattern so that it matches literally? Wow. I couldn't
+    // find one. It does of course have \Q...\E, but, umm, what if the
+    // literal contains a \E?
+    let mut quoted = String::new();
+    quoted.reserve(pattern.len());
+    for c in pattern.chars() {
+        if is_meta_character(c) {
+            quoted.push('\\');
+        }
+        quoted.push(c);
+    }
+    quoted
+}
+
 /// A low level representation of a compiled PCRE2 code object.
 pub(crate) struct Code {
     code: *mut pcre2_code_8,

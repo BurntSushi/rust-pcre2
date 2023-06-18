@@ -13,7 +13,7 @@ are welcome to improve this.
 
 pub use crate::{
     error::{Error, ErrorKind},
-    ffi::{is_jit_available, version},
+    ffi::{escape, is_jit_available, version},
 };
 
 /**
