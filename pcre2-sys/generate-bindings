@@ -17,9 +17,9 @@ fi
 bindgen \
     "$PCRE2SYS_HEADER" \
     --ctypes-prefix '::libc' \
-    --whitelist-function '^pcre2_.*' \
-    --whitelist-type '^pcre2_.*' \
-    --whitelist-var '^PCRE2_.*' \
-    --blacklist-function '^.*_callout_.*' \
-    --blacklist-type '^.*_callout_.*' \
+    --allowlist-function '^pcre2_.*' \
+    --allowlist-type '^pcre2_.*' \
+    --allowlist-var '^PCRE2_.*' \
+    --blocklist-function '^.*_callout_.*' \
+    --blocklist-type '^.*_callout_.*' \
     -- -DPCRE2_CODE_UNIT_WIDTH=8 > "$PCRE2SYS_BINDINGS"
