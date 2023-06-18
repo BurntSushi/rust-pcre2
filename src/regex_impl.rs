@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt,
     ops::Index,
@@ -8,8 +9,10 @@ use std::{
 
 use log::debug;
 use pcre2_sys::{
-    PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
-    PCRE2_MULTILINE, PCRE2_NEVER_UTF, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP,
+    PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_ERROR_NOMEMORY, PCRE2_EXTENDED,
+    PCRE2_MATCH_INVALID_UTF, PCRE2_MULTILINE, PCRE2_NEVER_UTF,
+    PCRE2_NEWLINE_ANYCRLF, PCRE2_SUBSTITUTE_EXTENDED, PCRE2_SUBSTITUTE_GLOBAL,
+    PCRE2_SUBSTITUTE_OVERFLOW_LENGTH, PCRE2_SUBSTITUTE_UNSET_EMPTY, PCRE2_UCP,
     PCRE2_UNSET, PCRE2_UTF,
 };
 
@@ -623,6 +626,127 @@ impl<W: CodeUnitWidth> Regex<W> {
     pub(crate) fn get_capture_names_idxs(&self) -> &HashMap<String, usize> {
         &self.capture_names_idx
     }
+
+    /// Replace the first match in the subject string with the replacement
+    /// If `extended` is true, enable PCRE2's extended replacement syntax.
+    pub fn replace<'s>(
+        &self,
+        subject: &'s [W::SubjectChar],
+        replacement: &[W::SubjectChar],
+        extended: bool,
+    ) -> Result<Cow<'s, [W::SubjectChar]>, Error>
+    where
+        [<W as CodeUnitWidth>::PCRE2_CHAR]: ToOwned,
+    {
+        self.replace_impl(subject, replacement, false, extended)
+    }
+
+    /// Replace all non-overlapping matches in the subject string with the replacement
+    /// If `extended` is true, enable PCRE2's extended replacement syntax.
+    pub fn replace_all<'s>(
+        &self,
+        subject: &'s [W::SubjectChar],
+        replacement: &[W::SubjectChar],
+        extended: bool,
+    ) -> Result<Cow<'s, [W::SubjectChar]>, Error>
+    where
+        [<W as CodeUnitWidth>::PCRE2_CHAR]: ToOwned,
+    {
+        self.replace_impl(subject, replacement, true, extended)
+    }
+
+    #[inline]
+    fn replace_impl<'s>(
+        &self,
+        subject: &'s [W::SubjectChar],
+        replacement: &[W::SubjectChar],
+        replace_all: bool,
+        extended: bool,
+    ) -> Result<Cow<'s, [W::SubjectChar]>, Error>
+    where
+        [<W as CodeUnitWidth>::PCRE2_CHAR]: ToOwned,
+    {
+        let mut options: u32 = 0;
+        options |= PCRE2_SUBSTITUTE_OVERFLOW_LENGTH;
+        // TODO: this should probably be configurable from user-side
+        options |= PCRE2_SUBSTITUTE_UNSET_EMPTY;
+        if extended {
+            options |= PCRE2_SUBSTITUTE_EXTENDED;
+        }
+        if replace_all {
+            options |= PCRE2_SUBSTITUTE_GLOBAL;
+        }
+
+        // We prefer to allocate on the stack but fall back to the heap.
+        // Note that PCRE2 has the following behavior with PCRE2_SUBSTITUTE_OVERFLOW_LENGTH:
+        //   - We supply the initial output buffer size in `capacity`. This should have sufficient
+        //     capacity for the terminating NUL character.
+        //   - If the capacity is NOT sufficient, PCRE2 returns the new required capacity, also
+        //     including the terminating NUL character.
+        //   - If the capacity IS sufficient, PCRE2 returns the number of characters written, NOT
+        //     including the terminating NUL character.
+        // Example: our initial capacity is 256. If the returned string needs to be of length 512,
+        // then PCRE2 will report NOMEMORY and set capacity to 513. After reallocating we pass in
+        // a capacity of 513; it succeeds and sets capacity to 512, which is the length of the result.
+        let mut stack_storage: [W::PCRE2_CHAR; 256] =
+            [W::PCRE2_CHAR::default(); 256];
+        let mut heap_storage = Vec::new();
+        let mut output = stack_storage.as_mut();
+        let mut capacity = output.len();
+
+        let mut rc = unsafe {
+            self.code.substitute(
+                subject,
+                replacement,
+                0,
+                options,
+                output,
+                &mut capacity,
+            )
+        };
+
+        if let Err(e) = &rc {
+            if e.code() == PCRE2_ERROR_NOMEMORY {
+                if heap_storage.try_reserve_exact(capacity).is_err() {
+                    return Err(rc.unwrap_err());
+                }
+                heap_storage.resize(capacity, W::PCRE2_CHAR::default());
+                output = &mut heap_storage;
+                capacity = output.len();
+                rc = unsafe {
+                    self.code.substitute(
+                        subject,
+                        replacement,
+                        0,
+                        options,
+                        output,
+                        &mut capacity,
+                    )
+                };
+            }
+        }
+
+        let s = match rc? {
+            0 => Cow::Borrowed(subject),
+            _ => {
+                // capacity has been updated with the length of the result (excluding nul terminator).
+                let output = &output[..capacity];
+
+                // All inputs contained valid chars, so we expect all outputs to as well.
+                let to_char = |c: W::PCRE2_CHAR| -> W::SubjectChar {
+                    c.try_into().unwrap_or_else(|_| {
+                        panic!("all output expected to be valid chars")
+                    })
+                };
+
+                // this is really just a type cast
+                let x: Vec<W::SubjectChar> =
+                    output.iter().copied().map(to_char).collect();
+                Cow::Owned(x)
+            }
+        };
+        Ok(s)
+    }
 }
 
 /// Advanced or  "lower level" search methods.
@@ -870,7 +994,7 @@ impl<W: CodeUnitWidth> CaptureLocations<W> {
     }
 }
 
-/// Captures represents a group of captured byte strings for a single match.
+/// `Captures` represents a group of captured strings for a single match.
 ///
 /// The 0th capture always corresponds to the entire match. Each subsequent
 /// index corresponds to the next capture group in the regex. If a capture

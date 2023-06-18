@@ -1,4 +1,5 @@
 use crate::ffi::CodeUnitWidth32;
+pub use crate::regex_impl::Captures as CapturesImpl;
 pub use crate::regex_impl::Match as MatchImpl;
 
 #[doc(inline)]
@@ -21,8 +22,23 @@ pub type RegexBuilder = RegexBuilderImpl<CodeUnitWidth32>;
 /// of the subject string.
 pub type Match<'s> = MatchImpl<'s, CodeUnitWidth32>;
 
+/// `Captures` represents a group of captured character strings for a single match.
+///
+/// The 0th capture always corresponds to the entire match. Each subsequent
+/// index corresponds to the next capture group in the regex. If a capture
+/// group is named, then the matched string is *also* available via the
+/// `name` method. (Note that the 0th capture is always unnamed and so must be
+/// accessed with the `get` method.)
+///
+/// Positions returned from a capture group are always character indices.
+///
+/// `'s` is the lifetime of the matched subject string.
+pub type Captures<'s> = CapturesImpl<'s, CodeUnitWidth32>;
+
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use super::{CodeUnitWidth32, Regex, RegexBuilder};
     use crate::is_jit_available;
 
@@ -95,6 +111,159 @@ mod tests {
         let re =
             RegexBuilder::new().multi_line(true).build(b("^abc$")).unwrap();
         assert!(re.is_match(&b("foo\nabc\nbar")).unwrap());
+    }
+
+    #[test]
+    fn replace() {
+        let re = RegexBuilder::new().build(b(".")).unwrap();
+        let s = b("abc");
+        let r = b("");
+        let replaced = re.replace(&s, &r, true).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("bc"));
+    }
+
+    #[test]
+    fn replace_no_match() {
+        let re = RegexBuilder::new().build(b("d")).unwrap();
+        let s = b("abc");
+        let r = b("");
+        let replaced = re.replace(&s, &r, true).unwrap();
+        assert!(
+            matches!(replaced, Cow::Borrowed(_)),
+            "when there is no match, the original string should be returned"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("abc"));
+    }
+
+    #[test]
+    fn replace_with_replacement() {
+        let re = RegexBuilder::new().build(b("b")).unwrap();
+        let s = b("abc");
+        let r = b("d");
+        let replaced = re.replace(&s, &r, true).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("adc"));
+    }
+
+    #[test]
+    fn replace_first_occurrence() {
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let s = b("aaa");
+        let r = b("b");
+        let replaced = re.replace(&s, &r, false).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("baa"));
+    }
+
+    #[test]
+    fn replace_multiple_occurrences() {
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let s = b("aaa");
+        let r = b("b");
+        let replaced = re.replace_all(&s, &r, false).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("bbb"));
+    }
+
+    #[test]
+    fn replace_empty_string() {
+        let re = RegexBuilder::new().build(b("")).unwrap();
+        let s = b("abc");
+        let r = b("d");
+        let replaced = re.replace(&s, &r, true).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &*b("dabc"));
+    }
+
+    #[test]
+    fn replace_empty_with_empty() {
+        let re = RegexBuilder::new().build(b("")).unwrap();
+        let s = b("");
+        let r = b("");
+        let replaced = re.replace(&s, &r, true).unwrap().into_owned();
+        assert_eq!(replaced, &*b(""));
+    }
+
+    #[test]
+    fn replace_long_string() {
+        let long_string = vec!['a'; 1024]; // Create a 1MB string filled with 'a'
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let r = b("b");
+        let replaced = re.replace(&long_string, &r, false).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        let mut expected = long_string.clone();
+        expected[0] = 'b';
+        assert_eq!(replaced, expected);
+    }
+
+    #[test]
+    fn replace_long_string_all() {
+        let long_string = vec!['a'; 1024];
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let r = b("b");
+        let replaced = re.replace_all(&long_string, &r, false).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        let all_b = vec!['b'; 1024];
+        assert_eq!(replaced, all_b);
+    }
+
+    #[test]
+    fn replace_long_string_all_elongating() {
+        let long_string = vec!['a'; 1024];
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let r = b("bx");
+        let replaced = re.replace_all(&long_string, &r, false).unwrap();
+        assert!(
+            matches!(replaced, Cow::Owned(_)),
+            "a replacement should give a new string"
+        );
+        let replaced = replaced.into_owned();
+        let mut all_bx = Vec::new();
+        for _ in long_string {
+            all_bx.push('b');
+            all_bx.push('x');
+        }
+        assert_eq!(replaced, all_bx);
+    }
+
+    #[test]
+    fn replace_long_string_all_disappearing() {
+        let long_string = vec!['a'; 1024];
+        let re = RegexBuilder::new().build(b("a")).unwrap();
+        let r = b("");
+        let replaced = re.replace_all(&long_string, &r, false).unwrap();
+        let replaced = replaced.into_owned();
+        assert_eq!(replaced, &[]);
     }
 
     #[test]
