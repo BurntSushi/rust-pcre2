@@ -11,8 +11,10 @@ are welcome to improve this.
 
 #![deny(missing_docs)]
 
-pub use crate::error::{Error, ErrorKind};
-pub use crate::ffi::{is_jit_available, version};
+pub use crate::{
+    error::{Error, ErrorKind},
+    ffi::{is_jit_available, version},
+};
 
 /**
 PCRE2 regular expressions for matching on arbitrary bytes.
