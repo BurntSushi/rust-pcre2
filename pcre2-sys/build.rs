@@ -19,47 +19,14 @@
 // platform detection for the various PCRE2 settings, but this should work
 // as-is on Windows, Linux and macOS.
 
-extern crate cc;
-extern crate pkg_config;
-
-use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
-
-// Files that PCRE2 needs to compile.
-const FILES: &'static [&'static str] = &[
-    "pcre2_auto_possess.c",
-    "pcre2_compile.c",
-    "pcre2_config.c",
-    "pcre2_context.c",
-    "pcre2_convert.c",
-    "pcre2_dfa_match.c",
-    "pcre2_error.c",
-    "pcre2_extuni.c",
-    "pcre2_find_bracket.c",
-    "pcre2_jit_compile.c",
-    "pcre2_maketables.c",
-    "pcre2_match.c",
-    "pcre2_match_data.c",
-    "pcre2_newline.c",
-    "pcre2_ord2utf.c",
-    "pcre2_pattern_info.c",
-    "pcre2_serialize.c",
-    "pcre2_string_utils.c",
-    "pcre2_study.c",
-    "pcre2_substitute.c",
-    "pcre2_substring.c",
-    "pcre2_tables.c",
-    "pcre2_ucd.c",
-    "pcre2_valid_utf.c",
-    "pcre2_xclass.c",
-];
+use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-env-changed=PCRE2_SYS_STATIC");
 
-    let target = env::var("TARGET").unwrap();
-    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let target = std::env::var("TARGET").unwrap();
+    // let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    let upstream = PathBuf::from("upstream");
 
     // Don't link to a system library if we want a static build.
     let want_static = pcre2_sys_static().unwrap_or(target.contains("musl"));
@@ -89,42 +56,40 @@ fn main() {
     if target.contains("windows") {
         builder.define("HAVE_WINDOWS_H", "1");
     }
-
     enable_jit(&target, &mut builder);
 
-    // Copy PCRE2 headers. Typically, `./configure` would do this for us
-    // automatically, but since we're compiling by hand, we do it ourselves.
-    let include = out.join("include");
-    fs::create_dir_all(&include).unwrap();
-    fs::copy("pcre2/src/config.h.generic", include.join("config.h")).unwrap();
-    fs::copy("pcre2/src/pcre2.h.generic", include.join("pcre2.h")).unwrap();
-
-    // Same deal for chartables. Just use the default.
-    let src = out.join("src");
-    fs::create_dir_all(&src).unwrap();
-    fs::copy(
-        "pcre2/src/pcre2_chartables.c.dist",
-        src.join("pcre2_chartables.c"),
-    )
-    .unwrap();
-
-    // Build everything.
-    builder
-        .include("pcre2/src")
-        .include(&include)
-        .file(src.join("pcre2_chartables.c"));
-    for file in FILES {
-        builder.file(Path::new("pcre2/src").join(file));
+    builder.include(upstream.join("src")).include(upstream.join("include"));
+    for result in std::fs::read_dir(upstream.join("src")).unwrap() {
+        let dent = result.unwrap();
+        let path = dent.path();
+        if path.extension().map_or(true, |ext| ext != "c") {
+            continue;
+        }
+        // Apparently PCRE2 doesn't want to compile these directly, but only as
+        // included from pcre2_jit_compile.c.
+        //
+        // ... and also pcre2_ucptables.c, which is included by pcre2_tables.c.
+        // This is despite NON-AUTOTOOLS-BUILD instructions saying that
+        // pcre2_ucptables.c should be compiled directly.
+        if path.ends_with("pcre2_jit_match.c")
+            || path.ends_with("pcre2_jit_misc.c")
+            || path.ends_with("pcre2_ucptables.c")
+        {
+            continue;
+        }
+        builder.file(path);
     }
 
-    if env::var("PCRE2_SYS_DEBUG").unwrap_or(String::new()) == "1" {
+    if std::env::var("PCRE2_SYS_DEBUG").unwrap_or(String::new()) == "1"
+        || std::env::var("DEBUG").unwrap_or(String::new()) == "1"
+    {
         builder.debug(true);
     }
     builder.compile("libpcre2.a");
 }
 
 fn pcre2_sys_static() -> Option<bool> {
-    match env::var("PCRE2_SYS_STATIC") {
+    match std::env::var("PCRE2_SYS_STATIC") {
         Err(_) => None,
         Ok(s) => {
             if s == "1" {
@@ -140,10 +105,10 @@ fn pcre2_sys_static() -> Option<bool> {
 
 // On `aarch64-apple-ios` clang fails with the following error.
 //
-//     Undefined symbols for architecture arm64:
-//       "___clear_cache", referenced from:
-//           _sljit_generate_code in libforeign.a(pcre2_jit_compile.o)
-//     ld: symbol(s) not found for architecture arm64
+//   Undefined symbols for architecture arm64:
+//     "___clear_cache", referenced from:
+//         _sljit_generate_code in libforeign.a(pcre2_jit_compile.o)
+//   ld: symbol(s) not found for architecture arm64
 //
 // aarch64-apple-tvos         https://bugreports.qt.io/browse/QTBUG-62993?gerritReviewStatus=All
 // aarch64-apple-darwin       https://github.com/Homebrew/homebrew-core/pull/57419
@@ -154,8 +119,9 @@ fn pcre2_sys_static() -> Option<bool> {
 // i386-apple-ios             assumed equivalent to aarch64-apple-ios (not tested)
 // x86_64-apple-ios-macabi    disabled out of caution (not tested) (needs attention)
 //
-// We may want to monitor developments on the `aarch64-apple-darwin` front as they may end up
-// propagating to all `aarch64`-based targets and the `x86_64` equivalents.
+// We may want to monitor developments on the `aarch64-apple-darwin` front as
+// they may end up propagating to all `aarch64`-based targets and the `x86_64`
+// equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
     if !target.starts_with("aarch64-apple")
         && !target.contains("apple-ios")
