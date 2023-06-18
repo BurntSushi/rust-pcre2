@@ -20,8 +20,7 @@ fn itworks() {
     if code.is_null() {
         panic!(
             "compilation failed; error code: {:?}, offset: {:?}",
-            error_code,
-            error_offset
+            error_code, error_offset
         );
     }
 

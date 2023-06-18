@@ -22,38 +22,38 @@
 extern crate cc;
 extern crate pkg_config;
 
-use std::process::Command;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 // Files that PCRE2 needs to compile.
 const FILES: &'static [&'static str] = &[
-   "pcre2_auto_possess.c",
-   "pcre2_compile.c",
-   "pcre2_config.c",
-   "pcre2_context.c",
-   "pcre2_convert.c",
-   "pcre2_dfa_match.c",
-   "pcre2_error.c",
-   "pcre2_extuni.c",
-   "pcre2_find_bracket.c",
-   "pcre2_jit_compile.c",
-   "pcre2_maketables.c",
-   "pcre2_match.c",
-   "pcre2_match_data.c",
-   "pcre2_newline.c",
-   "pcre2_ord2utf.c",
-   "pcre2_pattern_info.c",
-   "pcre2_serialize.c",
-   "pcre2_string_utils.c",
-   "pcre2_study.c",
-   "pcre2_substitute.c",
-   "pcre2_substring.c",
-   "pcre2_tables.c",
-   "pcre2_ucd.c",
-   "pcre2_valid_utf.c",
-   "pcre2_xclass.c",
+    "pcre2_auto_possess.c",
+    "pcre2_compile.c",
+    "pcre2_config.c",
+    "pcre2_context.c",
+    "pcre2_convert.c",
+    "pcre2_dfa_match.c",
+    "pcre2_error.c",
+    "pcre2_extuni.c",
+    "pcre2_find_bracket.c",
+    "pcre2_jit_compile.c",
+    "pcre2_maketables.c",
+    "pcre2_match.c",
+    "pcre2_match_data.c",
+    "pcre2_newline.c",
+    "pcre2_ord2utf.c",
+    "pcre2_pattern_info.c",
+    "pcre2_serialize.c",
+    "pcre2_string_utils.c",
+    "pcre2_study.c",
+    "pcre2_substitute.c",
+    "pcre2_substring.c",
+    "pcre2_tables.c",
+    "pcre2_ucd.c",
+    "pcre2_valid_utf.c",
+    "pcre2_xclass.c",
 ];
 
 fn main() {
@@ -114,7 +114,8 @@ fn main() {
     fs::copy(
         "pcre2/src/pcre2_chartables.c.dist",
         src.join("pcre2_chartables.c"),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Build everything.
     builder
@@ -132,7 +133,8 @@ fn main() {
 }
 
 fn has_git() -> bool {
-    Command::new("git").arg("--help")
+    Command::new("git")
+        .arg("--help")
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
@@ -172,9 +174,10 @@ fn pcre2_sys_static() -> Option<bool> {
 // We may want to monitor developments on the `aarch64-apple-darwin` front as they may end up
 // propagating to all `aarch64`-based targets and the `x86_64` equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
-    if !target.starts_with("aarch64-apple") &&
-        !target.contains("apple-ios") &&
-        !target.contains("apple-tvos") {
+    if !target.starts_with("aarch64-apple")
+        && !target.contains("apple-ios")
+        && !target.contains("apple-tvos")
+    {
         builder.define("SUPPORT_JIT", "1");
     }
 }
