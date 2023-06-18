@@ -1,8 +1,9 @@
-use std::error;
-use std::fmt;
-
-use libc::c_int;
-use pcre2_sys::*;
+use {
+    libc::c_int,
+    pcre2_sys::{
+        pcre2_get_error_message_8, PCRE2_ERROR_BADDATA, PCRE2_ERROR_NOMEMORY,
+    },
+};
 
 /// A PCRE2 error.
 ///
@@ -21,6 +22,7 @@ pub struct Error {
 ///
 /// This enum may expand over time.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum ErrorKind {
     /// An error occurred during compilation of a regex.
     Compile,
@@ -32,39 +34,32 @@ pub enum ErrorKind {
     Info,
     /// An error occurred while setting an option.
     Option,
-    /// Hints that destructuring should not be exhaustive.
-    ///
-    /// This enum may grow additional variants, so this makes sure clients
-    /// don't count on exhaustive matching. (Otherwise, adding a new variant
-    /// could break existing code.)
-    #[doc(hidden)]
-    __Nonexhaustive,
 }
 
 impl Error {
     /// Create a new compilation error.
     pub(crate) fn compile(code: c_int, offset: usize) -> Error {
-        Error { kind: ErrorKind::Compile, code: code, offset: Some(offset) }
+        Error { kind: ErrorKind::Compile, code, offset: Some(offset) }
     }
 
     /// Create a new JIT compilation error.
     pub(crate) fn jit(code: c_int) -> Error {
-        Error { kind: ErrorKind::JIT, code: code, offset: None }
+        Error { kind: ErrorKind::JIT, code, offset: None }
     }
 
     /// Create a new matching error.
     pub(crate) fn matching(code: c_int) -> Error {
-        Error { kind: ErrorKind::Match, code: code, offset: None }
+        Error { kind: ErrorKind::Match, code, offset: None }
     }
 
     /// Create a new info error.
     pub(crate) fn info(code: c_int) -> Error {
-        Error { kind: ErrorKind::Info, code: code, offset: None }
+        Error { kind: ErrorKind::Info, code, offset: None }
     }
 
     /// Create a new option error.
     pub(crate) fn option(code: c_int) -> Error {
-        Error { kind: ErrorKind::Option, code: code, offset: None }
+        Error { kind: ErrorKind::Option, code, offset: None }
     }
 
     /// Return the kind of this error.
@@ -112,14 +107,14 @@ impl Error {
     }
 }
 
-impl error::Error for Error {
+impl std::error::Error for Error {
     fn description(&self) -> &str {
         "pcre2 error"
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let msg = self.error_message();
         match self.kind {
             ErrorKind::Compile => match self.offset {
@@ -146,13 +141,12 @@ impl fmt::Display for Error {
             ErrorKind::Option => {
                 write!(f, "PCRE2: error setting option: {}", msg)
             }
-            _ => unreachable!(),
         }
     }
 }
 
-impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // We include the error message in the debug representation since
         // most humans probably don't have PCRE2 error codes memorized.
         f.debug_struct("Error")

@@ -5,12 +5,9 @@ unsafety, but this layer will take care of the obvious things, such as
 resource management and error handling.
 */
 
-use std::cmp;
-use std::ptr;
-use std::slice;
+use std::{cmp, ptr, slice};
 
-use libc::c_void;
-use pcre2_sys::*;
+use {libc::c_void, pcre2_sys::*};
 
 use crate::error::Error;
 
@@ -36,7 +33,7 @@ pub fn version() -> (u32, u32) {
 }
 
 /// A low level representation of a compiled PCRE2 code object.
-pub struct Code {
+pub(crate) struct Code {
     code: *mut pcre2_code_8,
     compiled_jit: bool,
     // We hang on to this but don't use it so that it gets freed when the
@@ -64,7 +61,7 @@ impl Drop for Code {
 impl Code {
     /// Compile the given pattern with the given options. If there was a
     /// problem compiling the pattern, then return an error.
-    pub fn new(
+    pub(crate) fn new(
         pattern: &str,
         options: u32,
         mut ctx: CompileContext,
@@ -91,7 +88,7 @@ impl Code {
     ///
     /// If there was a problem performing JIT compilation, then this returns
     /// an error.
-    pub fn jit_compile(&mut self) -> Result<(), Error> {
+    pub(crate) fn jit_compile(&mut self) -> Result<(), Error> {
         let error_code =
             unsafe { pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE) };
         if error_code == 0 {
@@ -111,7 +108,7 @@ impl Code {
     ///
     /// If there was a problem querying the compiled object for information,
     /// then this returns an error.
-    pub fn capture_names(&self) -> Result<Vec<Option<String>>, Error> {
+    pub(crate) fn capture_names(&self) -> Result<Vec<Option<String>>, Error> {
         // This is an object lesson in why C sucks. All we need is a map from
         // a name to a number, but we need to go through all sorts of
         // shenanigans to get it. In order to verify this code, see
@@ -143,7 +140,7 @@ impl Code {
     }
 
     /// Return the underlying raw pointer to the code object.
-    pub fn as_ptr(&self) -> *const pcre2_code_8 {
+    pub(crate) fn as_ptr(&self) -> *const pcre2_code_8 {
         self.code
     }
 
@@ -218,7 +215,7 @@ impl Code {
     /// Returns the total number of capturing groups in this regex. This
     /// includes the capturing group for the entire pattern, so that this is
     /// always 1 more than the number of syntactic groups in the pattern.
-    pub fn capture_count(&self) -> Result<usize, Error> {
+    pub(crate) fn capture_count(&self) -> Result<usize, Error> {
         let mut count: u32 = 0;
         let rc = unsafe {
             pcre2_pattern_info_8(
@@ -236,7 +233,7 @@ impl Code {
 }
 
 /// A low level representation of PCRE2's compilation context.
-pub struct CompileContext(*mut pcre2_compile_context_8);
+pub(crate) struct CompileContext(*mut pcre2_compile_context_8);
 
 // SAFETY: Compile contexts are safe to read from multiple threads
 // simultaneously. No interior mutability is used, so Sync is safe.
@@ -253,7 +250,7 @@ impl CompileContext {
     /// Create a new empty compilation context.
     ///
     /// If memory could not be allocated for the context, then this panics.
-    pub fn new() -> CompileContext {
+    pub(crate) fn new() -> CompileContext {
         let ctx = unsafe { pcre2_compile_context_create_8(ptr::null_mut()) };
         assert!(!ctx.is_null(), "could not allocate compile context");
         CompileContext(ctx)
@@ -264,7 +261,7 @@ impl CompileContext {
     /// Valid values are: PCRE2_NEWLINE_CR, PCRE2_NEWLINE_LF,
     /// PCRE2_NEWLINE_CRLF, PCRE2_NEWLINE_ANYCRLF, PCRE2_NEWLINE_ANY or
     /// PCRE2_NEWLINE_NUL. Using any other value results in an error.
-    pub fn set_newline(&mut self, value: u32) -> Result<(), Error> {
+    pub(crate) fn set_newline(&mut self, value: u32) -> Result<(), Error> {
         let rc = unsafe { pcre2_set_newline_8(self.0, value) };
         if rc == 0 {
             Ok(())
@@ -280,10 +277,10 @@ impl CompileContext {
 
 /// Configuration for PCRE2's match context.
 #[derive(Clone, Debug)]
-pub struct MatchConfig {
+pub(crate) struct MatchConfig {
     /// When set, a custom JIT stack will be created with the given maximum
     /// size.
-    pub max_jit_stack_size: Option<usize>,
+    pub(crate) max_jit_stack_size: Option<usize>,
 }
 
 impl Default for MatchConfig {
@@ -297,7 +294,7 @@ impl Default for MatchConfig {
 /// Technically, a single match data block can be used with multiple regexes
 /// (not simultaneously), but in practice, we just create a single match data
 /// block for each regex for each thread it's used in.
-pub struct MatchData {
+pub(crate) struct MatchData {
     config: MatchConfig,
     match_context: *mut pcre2_match_context_8,
     match_data: *mut pcre2_match_data_8,
@@ -331,7 +328,7 @@ impl MatchData {
     /// Create a new match data block from a compiled PCRE2 code object.
     ///
     /// This panics if memory could not be allocated for the block.
-    pub fn new(config: MatchConfig, code: &Code) -> MatchData {
+    pub(crate) fn new(config: MatchConfig, code: &Code) -> MatchData {
         let match_context =
             unsafe { pcre2_match_context_create_8(ptr::null_mut()) };
         assert!(!match_context.is_null(), "failed to allocate match context");
@@ -382,7 +379,7 @@ impl MatchData {
     }
 
     /// Return the configuration for this match data object.
-    pub fn config(&self) -> &MatchConfig {
+    pub(crate) fn config(&self) -> &MatchConfig {
         &self.config
     }
 
@@ -401,7 +398,7 @@ impl MatchData {
     /// behavior when not used correctly. For example, if PCRE2_NO_UTF_CHECK
     /// is given and UTF mode is enabled and the given subject string is not
     /// valid UTF-8, then the result is undefined.
-    pub unsafe fn find(
+    pub(crate) unsafe fn find(
         &mut self,
         code: &Code,
         mut subject: &[u8],
@@ -450,7 +447,7 @@ impl MatchData {
     /// The ovector represents match offsets as pairs. This always returns
     /// N + 1 pairs (so 2*N + 1 offsets), where N is the number of capturing
     /// groups in the original regex.
-    pub fn ovector(&self) -> &[usize] {
+    pub(crate) fn ovector(&self) -> &[usize] {
         // SAFETY: Both our ovector pointer and count are derived directly from
         // the creation of a valid match data block. One interesting question
         // here is whether the contents of the ovector are always initialized.
@@ -459,6 +456,11 @@ impl MatchData {
         unsafe {
             slice::from_raw_parts(
                 self.ovector_ptr,
+                // This could in theory overflow, but the ovector count comes
+                // directly from PCRE2, so presumably it's guaranteed to never
+                // overflow size_t/usize. Also, in practice, this would require
+                // a number of capture groups so large as to be probably
+                // impossible.
                 self.ovector_count as usize * 2,
             )
         }

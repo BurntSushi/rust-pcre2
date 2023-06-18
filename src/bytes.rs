@@ -1,19 +1,18 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fmt;
-use std::ops::Index;
-use std::sync::Arc;
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use log::debug;
-use pcre2_sys::{
-    PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
-    PCRE2_NEWLINE_ANYCRLF, PCRE2_NO_UTF_CHECK, PCRE2_UCP, PCRE2_UNSET,
-    PCRE2_UTF,
+use {
+    pcre2_sys::{
+        PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
+        PCRE2_NEWLINE_ANYCRLF, PCRE2_NO_UTF_CHECK, PCRE2_UCP, PCRE2_UNSET,
+        PCRE2_UTF,
+    },
+    thread_local::ThreadLocal,
 };
-use thread_local::CachedThreadLocal;
 
-use crate::error::Error;
-use crate::ffi::{Code, CompileContext, MatchConfig, MatchData};
+use crate::{
+    error::Error,
+    ffi::{Code, CompileContext, MatchConfig, MatchData},
+};
 
 /// Match represents a single match of a regex in a subject string.
 ///
@@ -160,7 +159,7 @@ impl RegexBuilder {
             }
             JITChoice::Attempt => {
                 if let Err(err) = code.jit_compile() {
-                    debug!("JIT compilation failed: {}", err);
+                    log::debug!("JIT compilation failed: {}", err);
                 }
             }
         }
@@ -177,7 +176,7 @@ impl RegexBuilder {
             code: Arc::new(code),
             capture_names: Arc::new(capture_names),
             capture_names_idx: Arc::new(idx),
-            match_data: CachedThreadLocal::new(),
+            match_data: ThreadLocal::new(),
         })
     }
 
@@ -368,11 +367,12 @@ pub struct Regex {
     capture_names_idx: Arc<HashMap<String, usize>>,
     /// Mutable scratch data used by PCRE2 during matching.
     ///
-    /// We use the same strategy as Rust's regex crate here, such that each
-    /// thread gets its own match data to support using a Regex object from
-    /// multiple threads simultaneously. If some match data doesn't exist for
-    /// a thread, then a new one is created on demand.
-    match_data: CachedThreadLocal<RefCell<MatchData>>,
+    /// We use the same strategy as Rust's regex crate here (well, what it
+    /// used to do, it now has its own pool), such that each thread gets its
+    /// own match data to support using a Regex object from multiple threads
+    /// simultaneously. If some match data doesn't exist for a thread, then a
+    /// new one is created on demand.
+    match_data: ThreadLocal<RefCell<MatchData>>,
 }
 
 impl Clone for Regex {
@@ -383,13 +383,13 @@ impl Clone for Regex {
             code: Arc::clone(&self.code),
             capture_names: Arc::clone(&self.capture_names),
             capture_names_idx: Arc::clone(&self.capture_names_idx),
-            match_data: CachedThreadLocal::new(),
+            match_data: ThreadLocal::new(),
         }
     }
 }
 
-impl fmt::Debug for Regex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for Regex {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Regex({:?})", self.pattern)
     }
 }
@@ -475,7 +475,7 @@ impl Regex {
         Matches {
             re: self,
             match_data: self.match_data(),
-            subject: subject,
+            subject,
             last_end: 0,
             last_match: None,
         }
@@ -546,8 +546,8 @@ impl Regex {
     ) -> Result<Option<Captures<'s>>, Error> {
         let mut locs = self.capture_locations();
         Ok(self.captures_read(&mut locs, subject)?.map(move |_| Captures {
-            subject: subject,
-            locs: locs,
+            subject,
+            locs,
             idx: Arc::clone(&self.capture_names_idx),
         }))
     }
@@ -585,12 +585,7 @@ impl Regex {
         &'r self,
         subject: &'s [u8],
     ) -> CaptureMatches<'r, 's> {
-        CaptureMatches {
-            re: self,
-            subject: subject,
-            last_end: 0,
-            last_match: None,
-        }
+        CaptureMatches { re: self, subject, last_end: 0, last_match: None }
     }
 }
 
@@ -805,8 +800,8 @@ impl Clone for CaptureLocations {
     }
 }
 
-impl fmt::Debug for CaptureLocations {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for CaptureLocations {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut offsets: Vec<Option<usize>> = vec![];
         for &offset in self.data.ovector() {
             if offset == PCRE2_UNSET {
@@ -915,16 +910,16 @@ impl<'s> Captures<'s> {
     }
 }
 
-impl<'s> fmt::Debug for Captures<'s> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'s> std::fmt::Debug for Captures<'s> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_tuple("Captures").field(&CapturesDebug(self)).finish()
     }
 }
 
 struct CapturesDebug<'c, 's: 'c>(&'c Captures<'s>);
 
-impl<'c, 's> fmt::Debug for CapturesDebug<'c, 's> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'c, 's> std::fmt::Debug for CapturesDebug<'c, 's> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn escape_bytes(bytes: &[u8]) -> String {
             let mut s = String::new();
             for &b in bytes {
@@ -972,7 +967,7 @@ impl<'c, 's> fmt::Debug for CapturesDebug<'c, 's> {
 /// # Panics
 ///
 /// If there is no group at the given index.
-impl<'s> Index<usize> for Captures<'s> {
+impl<'s> std::ops::Index<usize> for Captures<'s> {
     type Output = [u8];
 
     fn index(&self, i: usize) -> &[u8] {
@@ -994,7 +989,7 @@ impl<'s> Index<usize> for Captures<'s> {
 /// # Panics
 ///
 /// If there is no group named by the given value.
-impl<'s, 'i> Index<&'i str> for Captures<'s> {
+impl<'s, 'i> std::ops::Index<&'i str> for Captures<'s> {
     type Output = [u8];
 
     fn index<'a>(&'a self, name: &'i str) -> &'a [u8] {
@@ -1101,7 +1096,7 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
         self.last_match = Some(m.end());
         Some(Ok(Captures {
             subject: self.subject,
-            locs: locs,
+            locs,
             idx: Arc::clone(&self.re.capture_names_idx),
         }))
     }
