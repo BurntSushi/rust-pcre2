@@ -92,9 +92,8 @@ impl Code {
     /// If there was a problem performing JIT compilation, then this returns
     /// an error.
     pub fn jit_compile(&mut self) -> Result<(), Error> {
-        let error_code = unsafe {
-            pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE)
-        };
+        let error_code =
+            unsafe { pcre2_jit_compile_8(self.code, PCRE2_JIT_COMPLETE) };
         if error_code == 0 {
             self.compiled_jit = true;
             Ok(())
@@ -255,9 +254,7 @@ impl CompileContext {
     ///
     /// If memory could not be allocated for the context, then this panics.
     pub fn new() -> CompileContext {
-        let ctx = unsafe {
-            pcre2_compile_context_create_8(ptr::null_mut())
-        };
+        let ctx = unsafe { pcre2_compile_context_create_8(ptr::null_mut()) };
         assert!(!ctx.is_null(), "could not allocate compile context");
         CompileContext(ctx)
     }
@@ -291,9 +288,7 @@ pub struct MatchConfig {
 
 impl Default for MatchConfig {
     fn default() -> MatchConfig {
-        MatchConfig {
-            max_jit_stack_size: None,
-        }
+        MatchConfig { max_jit_stack_size: None }
     }
 }
 
@@ -337,9 +332,8 @@ impl MatchData {
     ///
     /// This panics if memory could not be allocated for the block.
     pub fn new(config: MatchConfig, code: &Code) -> MatchData {
-        let match_context = unsafe {
-            pcre2_match_context_create_8(ptr::null_mut())
-        };
+        let match_context =
+            unsafe { pcre2_match_context_create_8(ptr::null_mut()) };
         assert!(!match_context.is_null(), "failed to allocate match context");
 
         let match_data = unsafe {
@@ -356,14 +350,18 @@ impl MatchData {
             Some(max) => {
                 let stack = unsafe {
                     pcre2_jit_stack_create_8(
-                        cmp::min(max, 32 * 1<<10), max, ptr::null_mut(),
+                        cmp::min(max, 32 * 1 << 10),
+                        max,
+                        ptr::null_mut(),
                     )
                 };
                 assert!(!stack.is_null(), "failed to allocate JIT stack");
 
                 unsafe {
                     pcre2_jit_stack_assign_8(
-                        match_context, None, stack as *mut c_void,
+                        match_context,
+                        None,
+                        stack as *mut c_void,
                     )
                 };
                 Some(stack)
@@ -374,8 +372,12 @@ impl MatchData {
         assert!(!ovector_ptr.is_null(), "got NULL ovector pointer");
         let ovector_count = unsafe { pcre2_get_ovector_count_8(match_data) };
         MatchData {
-            config, match_context, match_data, jit_stack,
-            ovector_ptr, ovector_count,
+            config,
+            match_context,
+            match_data,
+            jit_stack,
+            ovector_ptr,
+            ovector_count,
         }
     }
 

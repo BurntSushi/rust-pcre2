@@ -44,47 +44,27 @@ pub enum ErrorKind {
 impl Error {
     /// Create a new compilation error.
     pub(crate) fn compile(code: c_int, offset: usize) -> Error {
-        Error {
-            kind: ErrorKind::Compile,
-            code: code,
-            offset: Some(offset),
-        }
+        Error { kind: ErrorKind::Compile, code: code, offset: Some(offset) }
     }
 
     /// Create a new JIT compilation error.
     pub(crate) fn jit(code: c_int) -> Error {
-        Error {
-            kind: ErrorKind::JIT,
-            code: code,
-            offset: None,
-        }
+        Error { kind: ErrorKind::JIT, code: code, offset: None }
     }
 
     /// Create a new matching error.
     pub(crate) fn matching(code: c_int) -> Error {
-        Error {
-            kind: ErrorKind::Match,
-            code: code,
-            offset: None,
-        }
+        Error { kind: ErrorKind::Match, code: code, offset: None }
     }
 
     /// Create a new info error.
     pub(crate) fn info(code: c_int) -> Error {
-        Error {
-            kind: ErrorKind::Info,
-            code: code,
-            offset: None,
-        }
+        Error { kind: ErrorKind::Info, code: code, offset: None }
     }
 
     /// Create a new option error.
     pub(crate) fn option(code: c_int) -> Error {
-        Error {
-            kind: ErrorKind::Option,
-            code: code,
-            offset: None,
-        }
+        Error { kind: ErrorKind::Option, code: code, offset: None }
     }
 
     /// Return the kind of this error.
@@ -142,21 +122,18 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = self.error_message();
         match self.kind {
-            ErrorKind::Compile => {
-                match self.offset {
-                    None => {
-                        write!(f, "PCRE2: error compiling pattern: {}", msg)
-                    }
-                    Some(offset) => {
-                        write!(
-                            f,
-                            "PCRE2: error compiling pattern at offset {}: {}",
-                            offset,
-                            msg
-                        )
-                    }
+            ErrorKind::Compile => match self.offset {
+                None => {
+                    write!(f, "PCRE2: error compiling pattern: {}", msg)
                 }
-            }
+                Some(offset) => {
+                    write!(
+                        f,
+                        "PCRE2: error compiling pattern at offset {}: {}",
+                        offset, msg
+                    )
+                }
+            },
             ErrorKind::JIT => {
                 write!(f, "PCRE2: error JIT compiling pattern: {}", msg)
             }
