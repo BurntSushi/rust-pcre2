@@ -55,6 +55,9 @@ jobs:
       run: cargo doc --verbose --all
     - name: Run tests
       run: cargo test --verbose --all
+    - name: Run tests with static build
+      shell: bash
+      run: PCRE2_SYS_STATIC=1 cargo test --verbose --all
 
   rustfmt:
     name: rustfmt
