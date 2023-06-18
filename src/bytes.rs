@@ -2,8 +2,8 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use {
     pcre2_sys::{
-        PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MULTILINE,
-        PCRE2_NEWLINE_ANYCRLF, PCRE2_NO_UTF_CHECK, PCRE2_UCP, PCRE2_UNSET,
+        PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
+        PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET,
         PCRE2_UTF,
     },
     thread_local::ThreadLocal,
@@ -71,8 +71,6 @@ struct Config {
     ucp: bool,
     /// PCRE2_UTF
     utf: bool,
-    /// PCRE2_NO_UTF_CHECK
-    utf_check: bool,
     /// use pcre2_jit_compile
     jit: JITChoice,
     /// Match-time specific configuration knobs.
@@ -99,7 +97,6 @@ impl Default for Config {
             crlf: false,
             ucp: false,
             utf: false,
-            utf_check: true,
             jit: JITChoice::Never,
             match_config: MatchConfig::default(),
         }
@@ -140,6 +137,7 @@ impl RegexBuilder {
         if self.config.ucp {
             options |= PCRE2_UCP;
             options |= PCRE2_UTF;
+            options |= PCRE2_MATCH_INVALID_UTF;
         }
         if self.config.utf {
             options |= PCRE2_UTF;
@@ -259,35 +257,28 @@ impl RegexBuilder {
     /// as when this is disabled, `.` will any single byte (except for `\n` in
     /// both cases, unless "dot all" mode is enabled).
     ///
-    /// Note that when UTF matching mode is enabled, every search performed
-    /// will do a UTF-8 validation check, which can impact performance. The
-    /// UTF-8 check can be disabled via the `disable_utf_check` option, but it
-    /// is undefined behavior to enable UTF matching mode and search invalid
-    /// UTF-8.
-    ///
     /// This is disabled by default.
     pub fn utf(&mut self, yes: bool) -> &mut RegexBuilder {
         self.config.utf = yes;
         self
     }
 
-    /// When UTF matching mode is enabled, this will disable the UTF checking
-    /// that PCRE2 will normally perform automatically. If UTF matching mode
-    /// is not enabled, then this has no effect.
+    /// This is now deprecated and is a no-op.
     ///
-    /// UTF checking is enabled by default when UTF matching mode is enabled.
-    /// If UTF matching mode is enabled and UTF checking is enabled, then PCRE2
-    /// will return an error if you attempt to search a subject string that is
-    /// not valid UTF-8.
+    /// Previously, this option permitted disabling PCRE2's UTF-8 validity
+    /// check, which could result in undefined behavior if the haystack was
+    /// not valid UTF-8. But PCRE2 introduced a new option, `PCRE2_MATCH_INVALID_UTF`,
+    /// in 10.34 which this crate always sets. When this option is enabled,
+    /// PCRE2 claims to not have undefined behavior when the haystack is
+    /// invalid UTF-8.
     ///
-    /// # Safety
-    ///
-    /// It is undefined behavior to disable the UTF check in UTF matching mode
-    /// and search a subject string that is not valid UTF-8. When the UTF check
-    /// is disabled, callers must guarantee that the subject string is valid
-    /// UTF-8.
-    pub unsafe fn disable_utf_check(&mut self) -> &mut RegexBuilder {
-        self.config.utf_check = false;
+    /// Therefore, disabling the UTF-8 check is not something that is exposed
+    /// by this crate.
+    #[deprecated(
+        since = "0.2.4",
+        note = "now a no-op due to new PCRE2 features"
+    )]
+    pub fn disable_utf_check(&mut self) -> &mut RegexBuilder {
         self
     }
 
@@ -609,17 +600,10 @@ impl Regex {
             subject.len()
         );
 
-        let mut options = 0;
-        if !self.config.utf_check {
-            options |= PCRE2_NO_UTF_CHECK;
-        }
-
+        let options = 0;
         let match_data = self.match_data();
         let mut match_data = match_data.borrow_mut();
-        // SAFETY: The only unsafe PCRE2 option we potentially use here is
-        // PCRE2_NO_UTF_CHECK, and that only occurs if the caller executes the
-        // `disable_utf_check` method, which propagates the safety contract to
-        // the caller.
+        // SAFETY: We don't use any dangerous PCRE2 options.
         Ok(unsafe { match_data.find(&self.code, subject, start, options)? })
     }
 
@@ -655,16 +639,9 @@ impl Regex {
             subject.len()
         );
 
-        let mut options = 0;
-        if !self.config.utf_check {
-            options |= PCRE2_NO_UTF_CHECK;
-        }
-
+        let options = 0;
         let mut match_data = match_data.borrow_mut();
-        // SAFETY: The only unsafe PCRE2 option we potentially use here is
-        // PCRE2_NO_UTF_CHECK, and that only occurs if the caller executes the
-        // `disable_utf_check` method, which propagates the safety contract to
-        // the caller.
+        // SAFETY: We don't use any dangerous PCRE2 options.
         if unsafe { !match_data.find(&self.code, subject, start, options)? } {
             return Ok(None);
         }
@@ -710,14 +687,8 @@ impl Regex {
             subject.len()
         );
 
-        let mut options = 0;
-        if !self.config.utf_check {
-            options |= PCRE2_NO_UTF_CHECK;
-        }
-        // SAFETY: The only unsafe PCRE2 option we potentially use here is
-        // PCRE2_NO_UTF_CHECK, and that only occurs if the caller executes the
-        // `disable_utf_check` method, which propagates the safety contract to
-        // the caller.
+        let options = 0;
+        // SAFETY: We don't use any dangerous PCRE2 options.
         if unsafe { !locs.data.find(&self.code, subject, start, options)? } {
             return Ok(None);
         }
