@@ -10,11 +10,11 @@ readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit"]
 license = "Unlicense/MIT"
 categories = ["external-ffi-bindings"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-libc = "0.2"
+libc = "0.2.146"
 
 [build-dependencies]
-cc = { version = "1", features = ["parallel"] }
-pkg-config = "0.3.13"
+cc = { version = "1.0.73", features = ["parallel"] }
+pkg-config = "0.3.27"
