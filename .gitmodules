@@ -1,4 +1,0 @@
-[submodule "pcre2-sys/pcre2"]
-	path = pcre2-sys/pcre2
-  url = https://github.com/BurntSushi/pcre2-mirror
-	branch = release/10.32
