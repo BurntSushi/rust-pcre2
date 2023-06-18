@@ -25,7 +25,6 @@ extern crate pkg_config;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 // Files that PCRE2 needs to compile.
 const FILES: &'static [&'static str] = &[
@@ -66,14 +65,6 @@ fn main() {
     let want_static = pcre2_sys_static().unwrap_or(target.contains("musl"));
     if !want_static && pkg_config::probe_library("libpcre2-8").is_ok() {
         return;
-    }
-
-    // For a static build, make sure our PCRE2 submodule has been loaded.
-    if has_git() && !Path::new("pcre2/.git").exists() {
-        Command::new("git")
-            .args(&["submodule", "update", "--init"])
-            .status()
-            .unwrap();
     }
 
     // Set some config options. We mostly just use the default values. We do
@@ -130,14 +121,6 @@ fn main() {
         builder.debug(true);
     }
     builder.compile("libpcre2.a");
-}
-
-fn has_git() -> bool {
-    Command::new("git")
-        .arg("--help")
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
 }
 
 fn pcre2_sys_static() -> Option<bool> {
