@@ -85,6 +85,12 @@ fn main() {
     {
         builder.debug(true);
     }
+    // We enable C99 mode when compiling PCRE2. Because without it, build errors
+    // have been observed in some environments. It's not totally clear why this
+    // only occurs in some environments, but one possible guess is that this
+    // supports older compilers. Either way, there is still some uncertainty
+    // about why enabling this flag is necessary. See #33 for more details.
+    builder.flag("-std=c99");
     builder.compile("libpcre2.a");
 }
 
