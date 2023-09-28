@@ -11,6 +11,8 @@ are welcome to improve this.
 
 #![deny(missing_docs)]
 
+extern crate alloc;
+
 pub use crate::{
     error::{Error, ErrorKind},
     ffi::{escape, is_jit_available, version},
@@ -22,3 +24,4 @@ PCRE2 regular expressions for matching on arbitrary bytes.
 pub mod bytes;
 mod error;
 mod ffi;
+mod pool;

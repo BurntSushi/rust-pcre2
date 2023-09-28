@@ -1,17 +1,18 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    panic::{RefUnwindSafe, UnwindSafe},
+    sync::Arc,
+};
 
-use {
-    pcre2_sys::{
-        PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
-        PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET,
-        PCRE2_UTF,
-    },
-    thread_local::ThreadLocal,
+use pcre2_sys::{
+    PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
+    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET, PCRE2_UTF,
 };
 
 use crate::{
     error::Error,
     ffi::{Code, CompileContext, MatchConfig, MatchData},
+    pool::{Pool, PoolGuard},
 };
 
 /// Match represents a single match of a regex in a subject string.
@@ -168,13 +169,21 @@ impl RegexBuilder {
                 idx.insert(name.to_string(), i);
             }
         }
+        let code = Arc::new(code);
+        let match_data = {
+            let config = self.config.match_config.clone();
+            let code = Arc::clone(&code);
+            let create: MatchDataPoolFn =
+                Box::new(move || MatchData::new(config.clone(), &code));
+            Pool::new(create)
+        };
         Ok(Regex {
             config: Arc::new(self.config.clone()),
             pattern: pattern.to_string(),
-            code: Arc::new(code),
+            code,
             capture_names: Arc::new(capture_names),
             capture_names_idx: Arc::new(idx),
-            match_data: ThreadLocal::new(),
+            match_data,
         })
     }
 
@@ -356,25 +365,26 @@ pub struct Regex {
     capture_names: Arc<Vec<Option<String>>>,
     /// A map from capture group name to capture group index.
     capture_names_idx: Arc<HashMap<String, usize>>,
-    /// Mutable scratch data used by PCRE2 during matching.
-    ///
-    /// We use the same strategy as Rust's regex crate here (well, what it
-    /// used to do, it now has its own pool), such that each thread gets its
-    /// own match data to support using a Regex object from multiple threads
-    /// simultaneously. If some match data doesn't exist for a thread, then a
-    /// new one is created on demand.
-    match_data: ThreadLocal<RefCell<MatchData>>,
+    /// A pool of mutable scratch data used by PCRE2 during matching.
+    match_data: MatchDataPool,
 }
 
 impl Clone for Regex {
     fn clone(&self) -> Regex {
+        let match_data = {
+            let config = self.config.match_config.clone();
+            let code = Arc::clone(&self.code);
+            let create: MatchDataPoolFn =
+                Box::new(move || MatchData::new(config.clone(), &code));
+            Pool::new(create)
+        };
         Regex {
             config: Arc::clone(&self.config),
             pattern: self.pattern.clone(),
             code: Arc::clone(&self.code),
             capture_names: Arc::clone(&self.capture_names),
             capture_names_idx: Arc::clone(&self.capture_names_idx),
-            match_data: ThreadLocal::new(),
+            match_data,
         }
     }
 }
@@ -601,10 +611,12 @@ impl Regex {
         );
 
         let options = 0;
-        let match_data = self.match_data();
-        let mut match_data = match_data.borrow_mut();
+        let mut match_data = self.match_data();
         // SAFETY: We don't use any dangerous PCRE2 options.
-        Ok(unsafe { match_data.find(&self.code, subject, start, options)? })
+        let res =
+            unsafe { match_data.find(&self.code, subject, start, options) };
+        PoolGuard::put(match_data);
+        res
     }
 
     /// Returns the same as find, but starts the search at the given
@@ -618,7 +630,11 @@ impl Regex {
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
-        self.find_at_with_match_data(self.match_data(), subject, start)
+        let mut match_data = self.match_data();
+        let res =
+            self.find_at_with_match_data(&mut match_data, subject, start);
+        PoolGuard::put(match_data);
+        res
     }
 
     /// Like find_at, but accepts match data instead of acquiring one itself.
@@ -628,7 +644,7 @@ impl Regex {
     #[inline(always)]
     fn find_at_with_match_data<'s>(
         &self,
-        match_data: &RefCell<MatchData>,
+        match_data: &mut MatchDataPoolGuard<'_>,
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
@@ -640,7 +656,6 @@ impl Regex {
         );
 
         let options = 0;
-        let mut match_data = match_data.borrow_mut();
         // SAFETY: We don't use any dangerous PCRE2 options.
         if unsafe { !match_data.find(&self.code, subject, start, options)? } {
             return Ok(None);
@@ -737,9 +752,8 @@ impl Regex {
         }
     }
 
-    fn match_data(&self) -> &RefCell<MatchData> {
-        let create = || RefCell::new(self.new_match_data());
-        self.match_data.get_or(create)
+    fn match_data(&self) -> MatchDataPoolGuard<'_> {
+        self.match_data.get()
     }
 
     fn new_match_data(&self) -> MatchData {
@@ -981,7 +995,7 @@ impl<'s, 'i> std::ops::Index<&'i str> for Captures<'s> {
 /// lifetime of the subject string.
 pub struct Matches<'r, 's> {
     re: &'r Regex,
-    match_data: &'r RefCell<MatchData>,
+    match_data: MatchDataPoolGuard<'r>,
     subject: &'s [u8],
     last_end: usize,
     last_match: Option<usize>,
@@ -995,7 +1009,7 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
             return None;
         }
         let res = self.re.find_at_with_match_data(
-            self.match_data,
+            &mut self.match_data,
             self.subject,
             self.last_end,
         );
@@ -1072,6 +1086,18 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
         }))
     }
 }
+
+/// A type alias for our pool of `MatchData` that fixes the type parameters to
+/// what we actually use in practice.
+type MatchDataPool = Pool<MatchData, MatchDataPoolFn>;
+
+/// Same as above, but for the guard returned by a pool.
+type MatchDataPoolGuard<'a> = PoolGuard<'a, MatchData, MatchDataPoolFn>;
+
+/// The type of the closure we use to create new caches. We need to spell out
+/// all of the marker traits or else we risk leaking !MARKER impls.
+type MatchDataPoolFn =
+    Box<dyn Fn() -> MatchData + Send + Sync + UnwindSafe + RefUnwindSafe>;
 
 #[cfg(test)]
 mod tests {
