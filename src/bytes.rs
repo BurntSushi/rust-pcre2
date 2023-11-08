@@ -1310,6 +1310,36 @@ mod tests {
     }
 
     #[test]
+    fn find_iter_empty_utf() {
+        let re = Regex::new(r"(*UTF)x*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (3, 3), (5, 5), (6, 6),]
+        );
+
+        let re = Regex::new(r"x*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),]
+        );
+    }
+
+    #[test]
+    fn captures_iter_empty_utf() {
+        let re = Regex::new(r"(*UTF)x*").unwrap();
+        assert_eq!(
+            cap_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (3, 3), (5, 5), (6, 6),]
+        );
+
+        let re = Regex::new(r"x*").unwrap();
+        assert_eq!(
+            cap_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),]
+        );
+    }
+
+    #[test]
     fn max_jit_stack_size_does_something() {
         if !is_jit_available() {
             return;
