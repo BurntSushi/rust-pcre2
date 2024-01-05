@@ -114,6 +114,7 @@ fn pcre2_sys_static() -> Option<bool> {
 // aarch64-linux-android      does not build
 // armv7-linux-androideabi    does not build
 // aarch64-unknown-linux-musl does not build
+// *-*-*-musleabi*            does not build
 //
 // We may want to monitor developments on the `aarch64-apple-darwin` front as
 // they may end up propagating to all `aarch64`-based targets and the `x86_64`
@@ -129,6 +130,9 @@ fn enable_jit(target: &str, builder: &mut cc::Build) {
         return;
     }
     if target == "aarch64-unknown-linux-musl" {
+        return;
+    }
+    if target.contains("musleabi") {
         return;
     }
     if target.contains("apple-ios") || target.contains("apple-tvos") {
