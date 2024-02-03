@@ -41,7 +41,9 @@ fn build_1_pcre2_lib(code_unit_width: &str) {
     if target.contains("windows") {
         builder.define("HAVE_WINDOWS_H", "1");
     }
-    enable_jit(&target, &mut builder);
+    if feature_enabled("JIT") {
+        enable_jit(&target, &mut builder);
+    }
 
     builder.include(upstream.join("src")).include(upstream.join("include"));
     for result in std::fs::read_dir(upstream.join("src")).unwrap() {
