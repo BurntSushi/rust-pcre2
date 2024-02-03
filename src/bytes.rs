@@ -1343,7 +1343,7 @@ mod tests {
         let re = RegexBuilder::new()
             .extended(true)
             .utf(true)
-            .jit(true)
+            .jit_if_available(true)
             .build(pattern)
             .unwrap();
         let matched = re.find(hay.as_bytes()).unwrap().unwrap();
@@ -1364,7 +1364,7 @@ mod tests {
         let re = RegexBuilder::new()
             .extended(true)
             .utf(true)
-            .jit(true)
+            .jit_if_available(true)
             .build(pattern)
             .unwrap();
         let matched = re.find(hay.as_bytes()).unwrap().unwrap();
