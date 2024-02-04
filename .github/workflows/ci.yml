@@ -50,14 +50,14 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
     - name: Build
-      run: cargo build --verbose --all
+      run: cargo build --verbose --all --features utf32
     - name: Build docs
-      run: cargo doc --verbose --all
+      run: cargo doc --verbose --all --features utf32
     - name: Run tests
-      run: cargo test --verbose --all
+      run: cargo test --verbose --all --features utf32
     - name: Run tests with static build
       shell: bash
-      run: PCRE2_SYS_STATIC=1 cargo test --verbose --all
+      run: PCRE2_SYS_STATIC=1 cargo test --verbose --all  --features utf32
 
   rustfmt:
     name: rustfmt
