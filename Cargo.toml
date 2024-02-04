@@ -19,3 +19,12 @@ members = ["pcre2-sys"]
 libc = "0.2.146"
 log = "0.4.19"
 pcre2-sys = { version = "0.2.7", path = "pcre2-sys" }
+
+[features]
+default = ["jit"]
+
+# Enable matching on UTF-32 strings
+utf32 = ["pcre2-sys/utf32"]
+
+# Enable the PCRE2 JIT
+jit = ["pcre2-sys/jit"]

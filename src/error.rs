@@ -89,7 +89,7 @@ impl Error {
     }
 
     /// Returns the error message from PCRE2.
-    fn error_message(&self) -> String {
+    pub fn error_message(&self) -> String {
         // PCRE2 docs say a buffer size of 120 bytes is enough, but we're
         // cautious and double it.
         let mut buf = [0u8; 240];

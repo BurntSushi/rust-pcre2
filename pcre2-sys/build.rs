@@ -21,35 +21,29 @@
 
 use std::path::PathBuf;
 
-fn main() {
-    println!("cargo:rerun-if-env-changed=PCRE2_SYS_STATIC");
-
+// Build and link against a PCRE2 library with the given code unit width,
+// which should be "8" or "32".
+fn build_1_pcre2_lib(code_unit_width: &str) {
     let target = std::env::var("TARGET").unwrap();
-    // let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     let upstream = PathBuf::from("upstream");
-
-    // Don't link to a system library if we want a static build.
-    let want_static = pcre2_sys_static().unwrap_or(target.contains("musl"));
-    if !want_static && pkg_config::probe_library("libpcre2-8").is_ok() {
-        return;
-    }
-
     // Set some config options. We mostly just use the default values. We do
     // this in lieu of patching config.h since it's easier.
     let mut builder = cc::Build::new();
     builder
-        .define("PCRE2_CODE_UNIT_WIDTH", "8")
+        .define("PCRE2_CODE_UNIT_WIDTH", code_unit_width)
         .define("HAVE_STDLIB_H", "1")
         .define("HAVE_MEMMOVE", "1")
         .define("HAVE_CONFIG_H", "1")
         .define("PCRE2_STATIC", "1")
         .define("STDC_HEADERS", "1")
-        .define("SUPPORT_PCRE2_8", "1")
+        .define(&format!("SUPPORT_PCRE2_{}", code_unit_width), "1")
         .define("SUPPORT_UNICODE", "1");
     if target.contains("windows") {
         builder.define("HAVE_WINDOWS_H", "1");
     }
-    enable_jit(&target, &mut builder);
+    if feature_enabled("JIT") {
+        enable_jit(&target, &mut builder);
+    }
 
     builder.include(upstream.join("src")).include(upstream.join("include"));
     for result in std::fs::read_dir(upstream.join("src")).unwrap() {
@@ -78,7 +72,34 @@ fn main() {
     {
         builder.debug(true);
     }
-    builder.compile("libpcre2.a");
+    builder.compile(&format!("libpcre2-{}.a", code_unit_width));
+}
+
+fn main() {
+    println!("cargo:rerun-if-env-changed=PCRE2_SYS_STATIC");
+
+    let target = std::env::var("TARGET").unwrap();
+    let do_utf32 = feature_enabled("UTF32");
+
+    // Don't link to a system library if we want a static build.
+    let want_static = pcre2_sys_static().unwrap_or(target.contains("musl"));
+    if want_static || pkg_config::probe_library("libpcre2-8").is_err() {
+        build_1_pcre2_lib("8");
+    }
+    if do_utf32
+        && (want_static || pkg_config::probe_library("libpcre2-32").is_err())
+    {
+        build_1_pcre2_lib("32");
+    }
+}
+
+// Return whether a given feature is enabled.
+fn feature_enabled(feature: &str) -> bool {
+    let env_var_name = format!("CARGO_FEATURE_{}", feature);
+    match std::env::var(&env_var_name) {
+        Ok(s) => s == "1",
+        Err(_) => false,
+    }
 }
 
 fn pcre2_sys_static() -> Option<bool> {
