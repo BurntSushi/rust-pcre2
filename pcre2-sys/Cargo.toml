@@ -1,6 +1,6 @@
 [package]
 name = "pcre2-sys"
-version = "0.2.8"  #:version
+version = "0.2.9"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = "Low level bindings to PCRE2."
 documentation = "https://docs.rs/pcre2-sys"
