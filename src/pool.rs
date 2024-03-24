@@ -137,7 +137,7 @@ mod inner {
         sync::atomic::{AtomicUsize, Ordering},
     };
 
-    use alloc::{boxed::Box, vec, vec::Vec};
+    use alloc::vec;
 
     use std::{sync::Mutex, thread_local};
 
@@ -661,7 +661,7 @@ mod inner {
 mod tests {
     use core::panic::{RefUnwindSafe, UnwindSafe};
 
-    use alloc::{boxed::Box, vec, vec::Vec};
+    use alloc::vec;
 
     use super::*;
 
