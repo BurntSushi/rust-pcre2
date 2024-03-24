@@ -11,7 +11,7 @@ pcre2_sys_dir="$(dirname "$0")"
 cd "$pcre2_sys_dir"
 
 dest="upstream"
-version="10.42"
+version="10.43"
 dir="pcre2-$version"
 archive="$dir.tar.gz"
 url="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$version/$archive"
@@ -27,6 +27,7 @@ mkdir -p "$dest"/{src,include}
 
 needed=(
   pcre2_auto_possess.c
+  pcre2_chkdint.c
   pcre2_compile.c
   pcre2_config.c
   pcre2_context.c
