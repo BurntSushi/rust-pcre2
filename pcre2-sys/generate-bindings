@@ -5,7 +5,7 @@
 
 if ! command -V bindgen > /dev/null 2>&1; then
     echo "bindgen must be installed" >&2
-    echo "to install: cargo install bindgen" >&2
+    echo "to install: cargo install bindgen-cli" >&2
     exit 1
 fi
 if ! [ -f "$PCRE2SYS_HEADER" ]; then
