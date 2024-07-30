@@ -433,20 +433,35 @@ impl MatchData {
         start: usize,
         options: u32,
     ) -> Result<bool, Error> {
-        // When the subject is empty, we use an empty slice
-        // with a known valid pointer. Otherwise, slices derived
-        // from, e.g., an empty `Vec<u8>` may not have a valid
-        // pointer, since creating an empty `Vec` is guaranteed
-        // to not allocate.
-        const EMPTY: &[u8] = &[];
+        // When the subject is empty, we use an NON-empty slice with a known
+        // valid pointer. Otherwise, slices derived from, e.g., an empty
+        // `Vec<u8>` may not have a valid pointer, since creating an empty
+        // `Vec` is guaranteed to not allocate.
+        //
+        // We use a non-empty slice since it is otherwise difficult
+        // to guarantee getting a dereferencable pointer. Which makes
+        // sense, because the slice is empty, the pointer should never be
+        // dereferenced!
+        //
+        // Alas, older versions of PCRE2 did exactly this. While that bug has
+        // been fixed a while ago, it still seems to pop up[1]. So we try
+        // harder.
+        //
+        // Note that even though we pass a non-empty slice in this case, we
+        // still pass a length of zero. This just provides a pointer that won't
+        // explode if you try to dereference it.
+        //
+        // [1]: https://github.com/BurntSushi/rust-pcre2/issues/42
+        static SINGLETON: &[u8] = &[0];
+        let len = subject.len();
         if subject.is_empty() {
-            subject = EMPTY;
+            subject = SINGLETON;
         }
 
         let rc = pcre2_match_8(
             code.as_ptr(),
             subject.as_ptr(),
-            subject.len(),
+            len,
             start,
             options,
             self.as_mut_ptr(),
