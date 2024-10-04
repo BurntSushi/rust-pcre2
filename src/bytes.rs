@@ -588,6 +588,58 @@ impl Regex {
     ) -> CaptureMatches<'r, 's> {
         CaptureMatches { re: self, subject, last_end: 0, last_match: None }
     }
+
+    /// Replaces the first match in `subject` with the `replacement`,
+    /// and puts the replaced string in `output`.
+    /// ```rust
+    /// # fn example() -> Result<(), ::pcre2::Error> {
+    /// use std::str;
+    ///
+    /// use pcre2::bytes::Regex;
+    ///
+    /// let re = Regex::new(r"mike")?;
+    /// let text = b"Hi mike, wait you are not mike.";
+    /// let mut output = Vec::new();
+    /// re.substitute(text, b"john", &mut output).unwrap();
+    /// assert_eq!(&output, b"Hi john, wait you are not mike.");
+    /// # Ok(()) }; example().unwrap()
+    /// ```
+    pub fn substitute(
+        &self,
+        subject: &[u8],
+        replacement: &[u8],
+        output: &mut Vec<u8>,
+    ) -> Result<usize, Error> {
+        self.code.substitute(subject, replacement, output, 0)
+    }
+    /// Replaces all the matches in `subject` with the `replacement`,
+    /// and puts the replaced string in `output`.
+    /// ```rust
+    /// # fn example() -> Result<(), ::pcre2::Error> {
+    /// use std::str;
+    ///
+    /// use pcre2::bytes::Regex;
+    ///
+    /// let re = Regex::new(r"mike")?;
+    /// let text = b"Hi mike, wait you are not mike.";
+    /// let mut output = Vec::new();
+    /// re.substitute_all(text, b"john", &mut output).unwrap();
+    /// assert_eq!(&output, b"Hi john, wait you are not john.");
+    /// # Ok(()) }; example().unwrap()
+    /// ```
+    pub fn substitute_all(
+        &self,
+        subject: &[u8],
+        replacement: &[u8],
+        output: &mut Vec<u8>,
+    ) -> Result<usize, Error> {
+        self.code.substitute(
+            subject,
+            replacement,
+            output,
+            pcre2_sys::PCRE2_SUBSTITUTE_GLOBAL,
+        )
+    }
 }
 
 /// Advanced or  "lower level" search methods.
@@ -1369,5 +1421,29 @@ mod tests {
             .unwrap();
         let matched = re.find(hay.as_bytes()).unwrap().unwrap();
         assert_eq!(matched.as_bytes(), "😀👍🏼🎉".as_bytes());
+    }
+    #[test]
+    fn test_substitute() {
+        let hay = "0123456789abcdefghijklmnopqrstuvwxyzABCDKLMNOPQRSTUVWXYZ";
+        let pattern = r"(?i)abcd";
+        let re = Regex::new(pattern).unwrap();
+        let mut output = Vec::new();
+        re.substitute(hay.as_bytes(), b"42", &mut output).unwrap();
+        assert_eq!(
+            &output,
+            b"012345678942efghijklmnopqrstuvwxyzABCDKLMNOPQRSTUVWXYZ"
+        );
+    }
+    #[test]
+    fn test_substitute_all() {
+        let hay = "0123456789abcdefghijklmnopqrstuvwxyzABCDKLMNOPQRSTUVWXYZ";
+        let pattern = r"(?i)abcd";
+        let re = Regex::new(pattern).unwrap();
+        let mut output = Vec::new();
+        re.substitute_all(hay.as_bytes(), b"42", &mut output).unwrap();
+        assert_eq!(
+            &output,
+            b"012345678942efghijklmnopqrstuvwxyz42KLMNOPQRSTUVWXYZ"
+        );
     }
 }

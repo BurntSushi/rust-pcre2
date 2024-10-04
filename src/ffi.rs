@@ -258,6 +258,61 @@ impl Code {
             Ok(1 + count as usize)
         }
     }
+
+    /// Substitute the replacement pattern in subject and put the output in
+    /// output vec. Output vec is will be cleared before use.
+    pub(crate) fn substitute(
+        &self,
+        subject: &[u8],
+        replacement: &[u8],
+        output: &mut Vec<u8>,
+        options: u32,
+    ) -> Result<usize, Error> {
+        output.clear();
+        let mut output_length =
+            if output.capacity() > 0 { output.capacity() - 1 } else { 0 };
+        let mut rc = unsafe {
+            pcre2_substitute_8(
+                self.as_ptr(),
+                subject.as_ptr(),
+                subject.len(),
+                0, //startoffset
+                PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | options,
+                ptr::null_mut(), //match_data
+                ptr::null_mut(), //match context
+                replacement.as_ptr(),
+                replacement.len(),
+                output.as_mut_ptr(),
+                &mut output_length,
+            )
+        };
+        if rc == PCRE2_ERROR_NOMEMORY {
+            output.reserve_exact(output_length + 1);
+            rc = unsafe {
+                pcre2_substitute_8(
+                    self.as_ptr(),
+                    subject.as_ptr(),
+                    subject.len(),
+                    0, //startoffset
+                    options,
+                    ptr::null_mut(), //match_data
+                    ptr::null_mut(), //match context
+                    replacement.as_ptr(),
+                    replacement.len(),
+                    output.as_mut_ptr(),
+                    &mut output_length,
+                )
+            }
+        }
+        if rc < 0 {
+            Err(Error::info(rc))
+        } else {
+            // Safety: pcre2_substitute_8 method above would set this
+            // field correctly.
+            unsafe { output.set_len(output_length) };
+            Ok(rc as usize)
+        }
+    }
 }
 
 /// A low level representation of PCRE2's compilation context.
