@@ -261,7 +261,9 @@ impl Code {
 
     /// Substitute the replacement pattern in subject and put the output in
     /// output vec. Output vec is will be cleared before use.
-    pub(crate) fn substitute(
+    /// Safety: ensure that options field will not cause undefined behavior
+    /// in pcre2-sys.
+    pub(crate) unsafe fn substitute(
         &self,
         subject: &[u8],
         replacement: &[u8],

@@ -610,7 +610,8 @@ impl Regex {
         replacement: &[u8],
         output: &mut Vec<u8>,
     ) -> Result<usize, Error> {
-        self.code.substitute(subject, replacement, output, 0)
+        // Safety: options is 0.
+        unsafe { self.code.substitute(subject, replacement, output, 0) }
     }
     /// Replaces all the matches in `subject` with the `replacement`,
     /// and puts the replaced string in `output`.
@@ -633,12 +634,15 @@ impl Regex {
         replacement: &[u8],
         output: &mut Vec<u8>,
     ) -> Result<usize, Error> {
-        self.code.substitute(
-            subject,
-            replacement,
-            output,
-            pcre2_sys::PCRE2_SUBSTITUTE_GLOBAL,
-        )
+        // Safety: PCRE2_SUBSTITUTE_GLOBAL is not a dangerous option.
+        unsafe {
+            self.code.substitute(
+                subject,
+                replacement,
+                output,
+                pcre2_sys::PCRE2_SUBSTITUTE_GLOBAL,
+            )
+        }
     }
 }
 
