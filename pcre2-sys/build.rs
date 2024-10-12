@@ -39,6 +39,8 @@ fn main() {
     let mut builder = cc::Build::new();
     builder
         .define("PCRE2_CODE_UNIT_WIDTH", "8")
+        // pcre2.exceptions.CompileError: Compilation failed at position 743. Regular expression is too large · Issue #271 · PCRE2Project/pcre2: https://github.com/PCRE2Project/pcre2/issues/271
+        .define("PCRE2_CONFIG_LINKSIZE", "4")
         .define("HAVE_STDLIB_H", "1")
         .define("HAVE_MEMMOVE", "1")
         .define("HAVE_CONFIG_H", "1")
