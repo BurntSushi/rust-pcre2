@@ -11,7 +11,7 @@ pcre2_sys_dir="$(dirname "$0")"
 cd "$pcre2_sys_dir"
 
 dest="upstream"
-version="10.43"
+version="10.44"
 dir="pcre2-$version"
 archive="$dir.tar.gz"
 url="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$version/$archive"
