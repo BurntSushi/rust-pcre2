@@ -51,26 +51,28 @@ fn main() {
     }
     enable_jit(&target, &mut builder);
 
-    builder.include(upstream.join("src")).include(upstream.join("include"));
-    for result in std::fs::read_dir(upstream.join("src")).unwrap() {
-        let dent = result.unwrap();
-        let path = dent.path();
-        if path.extension().map_or(true, |ext| ext != "c") {
-            continue;
+    builder.include(upstream.join("src")).include(upstream.join("deps")).include(upstream.join("include"));
+    for dir in ["src", "deps"] {
+        for result in std::fs::read_dir(upstream.join(dir)).unwrap() {
+            let dent = result.unwrap();
+            let path = dent.path();
+            if path.extension().map_or(true, |ext| ext != "c") {
+                continue;
+            }
+            // Apparently PCRE2 doesn't want to compile these directly, but only as
+            // included from pcre2_jit_compile.c.
+            //
+            // ... and also pcre2_ucptables.c, which is included by pcre2_tables.c.
+            // This is despite NON-AUTOTOOLS-BUILD instructions saying that
+            // pcre2_ucptables.c should be compiled directly.
+            if path.ends_with("pcre2_jit_match.c")
+                || path.ends_with("pcre2_jit_misc.c")
+                || path.ends_with("pcre2_ucptables.c")
+            {
+                continue;
+            }
+            builder.file(path);
         }
-        // Apparently PCRE2 doesn't want to compile these directly, but only as
-        // included from pcre2_jit_compile.c.
-        //
-        // ... and also pcre2_ucptables.c, which is included by pcre2_tables.c.
-        // This is despite NON-AUTOTOOLS-BUILD instructions saying that
-        // pcre2_ucptables.c should be compiled directly.
-        if path.ends_with("pcre2_jit_match.c")
-            || path.ends_with("pcre2_jit_misc.c")
-            || path.ends_with("pcre2_ucptables.c")
-        {
-            continue;
-        }
-        builder.file(path);
     }
 
     if std::env::var("PCRE2_SYS_DEBUG").unwrap_or(String::new()) == "1"
