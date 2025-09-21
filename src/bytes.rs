@@ -177,10 +177,12 @@ impl RegexBuilder {
                 Box::new(move || MatchData::new(config.clone(), &code));
             Pool::new(create)
         };
+        let utf = code.is_utf()?;
         Ok(Regex {
             config: Arc::new(self.config.clone()),
             pattern: pattern.to_string(),
             code,
+            utf,
             capture_names: Arc::new(capture_names),
             capture_names_idx: Arc::new(idx),
             match_data,
@@ -361,6 +363,8 @@ pub struct Regex {
     pattern: String,
     /// The underlying compiled PCRE2 object.
     code: Arc<Code>,
+    /// True if the regex uses UTF mode.
+    utf: bool,
     /// The capture group names for this regex.
     capture_names: Arc<Vec<Option<String>>>,
     /// A map from capture group name to capture group index.
@@ -382,6 +386,7 @@ impl Clone for Regex {
             config: Arc::clone(&self.config),
             pattern: self.pattern.clone(),
             code: Arc::clone(&self.code),
+            utf: self.utf,
             capture_names: Arc::clone(&self.capture_names),
             capture_names_idx: Arc::clone(&self.capture_names_idx),
             match_data,
@@ -759,6 +764,20 @@ impl Regex {
     fn new_match_data(&self) -> MatchData {
         MatchData::new(self.config.match_config.clone(), &self.code)
     }
+
+    /// Determines the next possible match starting position within the
+    /// subject string. In UTF mode, the starting position must be a
+    /// UTF-8 character boundary. In non-UTF mode, any byte offset is
+    /// a valid starting position.
+    fn position_after(&self, subject: &[u8], start: usize) -> usize {
+        let mut pos = start + 1;
+        if self.utf {
+            while subject.get(pos).map_or(false, |b| (*b as i8) < -0x40) {
+                pos += 1;
+            }
+        }
+        pos
+    }
 }
 
 /// CaptureLocations is a low level representation of the raw offsets of each
@@ -1022,7 +1041,7 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
             // This is an empty match. To ensure we make progress, start
             // the next search at the smallest possible starting position
             // of the next match following this one.
-            self.last_end = m.end() + 1;
+            self.last_end = self.re.position_after(self.subject, m.end());
             // Don't accept empty matches immediately following a match.
             // Just move on to the next match.
             if Some(m.end()) == self.last_match {
@@ -1069,7 +1088,7 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
             // This is an empty match. To ensure we make progress, start
             // the next search at the smallest possible starting position
             // of the next match following this one.
-            self.last_end = m.end() + 1;
+            self.last_end = self.re.position_after(self.subject, m.end());
             // Don't accept empty matches immediately following a match.
             // Just move on to the next match.
             if Some(m.end()) == self.last_match {
@@ -1287,6 +1306,36 @@ mod tests {
         assert_eq!(
             cap_iter_tuples(&re, b"\na\n\n"),
             vec![(0, 0), (1, 1), (3, 3),]
+        );
+    }
+
+    #[test]
+    fn find_iter_empty_utf() {
+        let re = Regex::new(r"(*UTF)x*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (3, 3), (5, 5), (6, 6),]
+        );
+
+        let re = Regex::new(r"x*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),]
+        );
+    }
+
+    #[test]
+    fn captures_iter_empty_utf() {
+        let re = Regex::new(r"(*UTF)x*").unwrap();
+        assert_eq!(
+            cap_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (3, 3), (5, 5), (6, 6),]
+        );
+
+        let re = Regex::new(r"x*").unwrap();
+        assert_eq!(
+            cap_iter_tuples(&re, "∀ÁA".as_bytes()),
+            vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6),]
         );
     }
 

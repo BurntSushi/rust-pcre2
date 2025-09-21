@@ -242,6 +242,27 @@ impl Code {
         };
         if rc != 0 { Err(Error::info(rc)) } else { Ok(1 + count as usize) }
     }
+
+    /// Returns true if this regex uses UTF mode (matches whole UTF-8
+    /// characters), or false if it uses non-UTF mode (matches
+    /// individual bytes). This depends on the options specified when
+    /// compiling the regex, and may also be affected by flags such as
+    /// `(*UTF)` within the pattern itself.
+    pub(crate) fn is_utf(&self) -> Result<bool, Error> {
+        let mut options: u32 = 0;
+        let rc = unsafe {
+            pcre2_pattern_info_8(
+                self.as_ptr(),
+                PCRE2_INFO_ALLOPTIONS,
+                &mut options as *mut u32 as *mut c_void,
+            )
+        };
+        if rc != 0 {
+            Err(Error::info(rc))
+        } else {
+            Ok(options & PCRE2_UTF != 0)
+        }
+    }
 }
 
 /// A low level representation of PCRE2's compilation context.
