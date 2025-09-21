@@ -669,7 +669,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn pcre2_get_match_data_size_8(arg1: *mut pcre2_match_data_8)
-        -> usize;
+    -> usize;
 }
 unsafe extern "C" {
     pub fn pcre2_get_match_data_heapframes_size_8(
@@ -844,7 +844,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn pcre2_maketables_8(arg1: *mut pcre2_general_context_8)
-        -> *const u8;
+    -> *const u8;
 }
 unsafe extern "C" {
     pub fn pcre2_maketables_free_8(
