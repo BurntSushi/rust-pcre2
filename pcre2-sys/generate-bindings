@@ -3,6 +3,9 @@
 : "${PCRE2SYS_HEADER:=/usr/include/pcre2.h}"
 : "${PCRE2SYS_BINDINGS:=./src/bindings.rs}"
 
+set -e
+cd "$(dirname "$0")"
+
 if ! command -V bindgen > /dev/null 2>&1; then
     echo "bindgen must be installed" >&2
     echo "to install: cargo install bindgen-cli" >&2

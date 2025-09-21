@@ -51,7 +51,10 @@ fn main() {
     }
     enable_jit(&target, &mut builder);
 
-    builder.include(upstream.join("src")).include(upstream.join("include"));
+    builder
+        .include(upstream.join("src"))
+        .include(upstream.join("deps"))
+        .include(upstream.join("include"));
     for result in std::fs::read_dir(upstream.join("src")).unwrap() {
         let dent = result.unwrap();
         let path = dent.path();
