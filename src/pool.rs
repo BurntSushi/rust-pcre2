@@ -687,7 +687,6 @@ mod tests {
     // Tests that Pool implements the "single owner" optimization. That is, the
     // thread that first accesses the pool gets its own copy, while all other
     // threads get distinct copies.
-    #[cfg(feature = "std")]
     #[test]
     fn thread_owner_optimization() {
         use std::{cell::RefCell, sync::Arc, vec};
@@ -753,7 +752,6 @@ mod tests {
     // developing a pool since the pool permitted 'get()' to return the same
     // value to the owner thread, even before the previous value was put back
     // into the pool. This in turn resulted in this test producing a data race.
-    #[cfg(feature = "std")]
     #[test]
     fn thread_owner_sync() {
         let pool = Pool::new(|| vec!['a']);
@@ -788,7 +786,6 @@ mod tests {
     // PoolGuard assumed it was dropped in the same thread from which it was
     // created, and thus used the current thread's ID as the owner, which could
     // be different than the actual owner of the pool.
-    #[cfg(feature = "std")]
     #[test]
     fn thread_owner_send_drop() {
         let pool = Pool::new(|| vec!['a']);
