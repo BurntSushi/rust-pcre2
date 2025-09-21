@@ -11,7 +11,7 @@ pcre2_sys_dir="$(dirname "$0")"
 cd "$pcre2_sys_dir"
 
 dest="upstream"
-version="10.43"
+version="10.46"
 dir="pcre2-$version"
 archive="$dir.tar.gz"
 url="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$version/$archive"
@@ -22,13 +22,14 @@ curl -L "$url" > "$work/$archive"
 (cd "$work" && tar xf "$archive")
 
 upstream="$work/$dir"
-rm -rf "$dest"/{src,include}
-mkdir -p "$dest"/{src,include}
+rm -rf "$dest"/{src,deps,include}
+mkdir -p "$dest"/{src,deps,include}
 
 needed=(
   pcre2_auto_possess.c
   pcre2_chkdint.c
   pcre2_compile.c
+  pcre2_compile_class.c
   pcre2_config.c
   pcre2_context.c
   pcre2_convert.c
@@ -57,17 +58,20 @@ needed=(
   pcre2_valid_utf.c
   pcre2_xclass.c
 
+  pcre2_compile.h
   pcre2_internal.h
   pcre2_intmodedep.h
+  pcre2_jit_char_inc.h
   pcre2_jit_neon_inc.h
   pcre2_jit_simd_inc.h
   pcre2posix.h
+  pcre2_util.h
   pcre2_ucp.h
 )
 for name in "${needed[@]}"; do
   cp "$upstream/src/$name" "$dest/src/"
 done
 cp "$upstream/src/pcre2_chartables.c.dist" "$dest/src/pcre2_chartables.c"
-cp -a "$upstream/src/sljit" "$dest/src/"
+cp -a "$upstream/deps/sljit" "$dest/deps/"
 cp "$upstream/src/config.h.generic" "$dest/include/config.h"
 cp "$upstream/src/pcre2.h.generic" "$dest/include/pcre2.h"
