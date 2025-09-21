@@ -1,7 +1,7 @@
 use {
     libc::c_int,
     pcre2_sys::{
-        pcre2_get_error_message_8, PCRE2_ERROR_BADDATA, PCRE2_ERROR_NOMEMORY,
+        PCRE2_ERROR_BADDATA, PCRE2_ERROR_NOMEMORY, pcre2_get_error_message_8,
     },
 };
 
