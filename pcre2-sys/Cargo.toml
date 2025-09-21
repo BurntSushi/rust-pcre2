@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit"]
 license = "Unlicense OR MIT"
 categories = ["external-ffi-bindings"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 libc = "0.2.146"

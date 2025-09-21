@@ -458,15 +458,17 @@ impl MatchData {
             subject = SINGLETON;
         }
 
-        let rc = pcre2_match_8(
-            code.as_ptr(),
-            subject.as_ptr(),
-            len,
-            start,
-            options,
-            self.as_mut_ptr(),
-            self.match_context,
-        );
+        let rc = unsafe {
+            pcre2_match_8(
+                code.as_ptr(),
+                subject.as_ptr(),
+                len,
+                start,
+                options,
+                self.as_mut_ptr(),
+                self.match_context,
+            )
+        };
         if rc == PCRE2_ERROR_NOMATCH {
             Ok(false)
         } else if rc > 0 {

@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["pcre", "pcre2", "regex", "jit", "perl"]
 license = "Unlicense OR MIT"
 categories = ["text-processing"]
-edition = "2021"
+edition = "2024"
 
 [workspace]
 members = ["pcre2-sys"]
