@@ -104,7 +104,6 @@ fn pcre2_sys_static() -> Option<bool> {
 //   ld: symbol(s) not found for architecture arm64
 //
 // aarch64-apple-tvos         https://bugreports.qt.io/browse/QTBUG-62993?gerritReviewStatus=All
-// aarch64-apple-darwin       https://github.com/Homebrew/homebrew-core/pull/57419
 // x86_64-apple-ios           disabled for device–simulator consistency (not tested)
 // x86_64-apple-tvos          disabled for device–simulator consistency (not tested)
 // armv7-apple-ios            assumed equivalent to aarch64-apple-ios (not tested)
@@ -120,9 +119,6 @@ fn pcre2_sys_static() -> Option<bool> {
 // they may end up propagating to all `aarch64`-based targets and the `x86_64`
 // equivalents.
 fn enable_jit(target: &str, builder: &mut cc::Build) {
-    if target.starts_with("aarch64-apple") {
-        return;
-    }
     if target == "aarch64-linux-android" {
         return;
     }
