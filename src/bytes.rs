@@ -350,6 +350,10 @@ impl RegexBuilder {
     }
 }
 
+/// Options that apply to a "find" operation.
+#[derive(Clone, Copy, Default)]
+struct FindOptions {}
+
 /// A compiled PCRE2 regular expression.
 ///
 /// This regex is safe to use from multiple threads simultaneously. For top
@@ -631,8 +635,12 @@ impl Regex {
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
         let mut match_data = self.match_data();
-        let res =
-            self.find_at_with_match_data(&mut match_data, subject, start);
+        let res = self.find_at_with_match_data(
+            &mut match_data,
+            subject,
+            start,
+            FindOptions::default(),
+        );
         PoolGuard::put(match_data);
         res
     }
@@ -647,6 +655,7 @@ impl Regex {
         match_data: &mut MatchData,
         subject: &'s [u8],
         start: usize,
+        find_options: FindOptions,
     ) -> Result<Option<Match<'s>>, Error> {
         assert!(
             start <= subject.len(),
@@ -695,7 +704,12 @@ impl Regex {
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
-        self.find_at_with_match_data(&mut locs.data, subject, start)
+        self.find_at_with_match_data(
+            &mut locs.data,
+            subject,
+            start,
+            FindOptions::default(),
+        )
     }
 }
 
@@ -998,6 +1012,7 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
             &mut self.match_data,
             self.subject,
             self.last_end,
+            FindOptions::default(),
         );
         let m = match res {
             Err(err) => return Some(Err(err)),
@@ -1048,6 +1063,7 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
             &mut locs.data,
             self.subject,
             self.last_end,
+            FindOptions::default(),
         );
         let m = match res {
             Err(err) => return Some(Err(err)),
