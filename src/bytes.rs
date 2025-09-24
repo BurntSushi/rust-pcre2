@@ -1016,30 +1016,24 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
         if self.last_end > self.subject.len() {
             return None;
         }
+        let mut options = FindOptions::default();
+        if self.last_match.is_some() {
+            // Don't accept empty matches immediately following a match.
+            // Just move on to the next match.
+            options.notempty_atstart = true;
+        }
         let res = self.re.find_at_with_match_data(
             &mut self.match_data,
             self.subject,
             self.last_end,
-            FindOptions::default(),
+            options,
         );
         let m = match res {
             Err(err) => return Some(Err(err)),
             Ok(None) => return None,
             Ok(Some(m)) => m,
         };
-        if m.start() == m.end() {
-            // This is an empty match. To ensure we make progress, start
-            // the next search at the smallest possible starting position
-            // of the next match following this one.
-            self.last_end = m.end() + 1;
-            // Don't accept empty matches immediately following a match.
-            // Just move on to the next match.
-            if Some(m.end()) == self.last_match {
-                return self.next();
-            }
-        } else {
-            self.last_end = m.end();
-        }
+        self.last_end = m.end();
         self.last_match = Some(m.end());
         Some(Ok(m))
     }
@@ -1067,30 +1061,24 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
             return None;
         }
         let mut locs = self.re.capture_locations();
+        let mut options = FindOptions::default();
+        if self.last_match.is_some() {
+            // Don't accept empty matches immediately following a match.
+            // Just move on to the next match.
+            options.notempty_atstart = true;
+        }
         let res = self.re.find_at_with_match_data(
             &mut locs.data,
             self.subject,
             self.last_end,
-            FindOptions::default(),
+            options,
         );
         let m = match res {
             Err(err) => return Some(Err(err)),
             Ok(None) => return None,
             Ok(Some(m)) => m,
         };
-        if m.start() == m.end() {
-            // This is an empty match. To ensure we make progress, start
-            // the next search at the smallest possible starting position
-            // of the next match following this one.
-            self.last_end = m.end() + 1;
-            // Don't accept empty matches immediately following a match.
-            // Just move on to the next match.
-            if Some(m.end()) == self.last_match {
-                return self.next();
-            }
-        } else {
-            self.last_end = m.end();
-        }
+        self.last_end = m.end();
         self.last_match = Some(m.end());
         Some(Ok(Captures {
             subject: self.subject,
