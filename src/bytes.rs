@@ -1044,8 +1044,11 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
             return None;
         }
         let mut locs = self.re.capture_locations();
-        let res =
-            self.re.captures_read_at(&mut locs, self.subject, self.last_end);
+        let res = self.re.find_at_with_match_data(
+            &mut locs.data,
+            self.subject,
+            self.last_end,
+        );
         let m = match res {
             Err(err) => return Some(Err(err)),
             Ok(None) => return None,
