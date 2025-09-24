@@ -6,7 +6,8 @@ use std::{
 
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
-    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET, PCRE2_UTF,
+    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_NOTEMPTY_ATSTART, PCRE2_UCP,
+    PCRE2_UNSET, PCRE2_UTF,
 };
 
 use crate::{
@@ -352,7 +353,11 @@ impl RegexBuilder {
 
 /// Options that apply to a "find" operation.
 #[derive(Clone, Copy, Default)]
-struct FindOptions {}
+struct FindOptions {
+    /// Ignore an empty match if it occurs at the start position
+    /// (PCRE2_NOTEMPTY_ATSTART).
+    notempty_atstart: bool,
+}
 
 /// A compiled PCRE2 regular expression.
 ///
@@ -664,7 +669,10 @@ impl Regex {
             subject.len()
         );
 
-        let options = 0;
+        let mut options = 0;
+        if find_options.notempty_atstart {
+            options |= PCRE2_NOTEMPTY_ATSTART;
+        }
         // SAFETY: We don't use any dangerous PCRE2 options.
         if unsafe { !match_data.find(&self.code, subject, start, options)? } {
             return Ok(None);
