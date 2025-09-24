@@ -644,7 +644,7 @@ impl Regex {
     #[inline(always)]
     fn find_at_with_match_data<'s>(
         &self,
-        match_data: &mut MatchDataPoolGuard<'_>,
+        match_data: &mut MatchData,
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
@@ -695,21 +695,7 @@ impl Regex {
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
-        assert!(
-            start <= subject.len(),
-            "start ({}) must be <= subject.len() ({})",
-            start,
-            subject.len()
-        );
-
-        let options = 0;
-        // SAFETY: We don't use any dangerous PCRE2 options.
-        if unsafe { !locs.data.find(&self.code, subject, start, options)? } {
-            return Ok(None);
-        }
-        let ovector = locs.data.ovector();
-        let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject, s, e)))
+        self.find_at_with_match_data(&mut locs.data, subject, start)
     }
 }
 
