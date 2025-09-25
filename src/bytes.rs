@@ -1292,6 +1292,70 @@ mod tests {
     }
 
     #[test]
+    fn iter_empty_mixed() {
+        let re = Regex::new(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (1, 1), (2, 4), (4, 6), (7, 7), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (1, 1), (2, 4), (4, 6), (7, 7), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            find_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (3, 3), (4, 6)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (3, 3), (4, 6)]
+        );
+    }
+
+    #[test]
+    fn iter_empty_mixed_utf() {
+        let re = RegexBuilder::new().utf(true).build(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert!(re.find_iter(b"xy\x80\x80xy").next().unwrap().is_err());
+        assert!(re.captures_iter(b"xy\x80\x80xy").next().unwrap().is_err());
+    }
+
+    #[test]
+    fn iter_empty_mixed_ucp() {
+        let re = RegexBuilder::new().ucp(true).build(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            find_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (4, 6)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (4, 6)]
+        );
+    }
+
+    #[test]
+    fn iter_lookbehind_ucp() {
+        let re = RegexBuilder::new().ucp(true).build(r"(?<=á)").unwrap();
+        assert_eq!(find_iter_tuples(&re, b("áá")), vec![(2, 2), (4, 4)]);
+        assert_eq!(cap_iter_tuples(&re, b("áá")), vec![(2, 2), (4, 4)]);
+    }
+
+    #[test]
     fn max_jit_stack_size_does_something() {
         if !is_jit_available() {
             return;
