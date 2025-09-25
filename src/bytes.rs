@@ -811,18 +811,15 @@ impl CaptureLocations {
     /// original subject string matched.
     #[inline]
     pub fn get(&self, i: usize) -> Option<(usize, usize)> {
+        let start_index = i.checked_mul(2)?;
+        let end_index = start_index.checked_add(1)?;
         let ovec = self.data.ovector();
-        let s = match ovec.get(i * 2) {
-            None => return None,
-            Some(&s) if s == PCRE2_UNSET => return None,
-            Some(&s) => s,
-        };
-        let e = match ovec.get(i * 2 + 1) {
-            None => return None,
-            Some(&e) if e == PCRE2_UNSET => return None,
-            Some(&e) => e,
-        };
-        Some((s, e))
+        let start = *ovec.get(start_index)?;
+        let end = *ovec.get(end_index)?;
+        if start == PCRE2_UNSET || end == PCRE2_UNSET {
+            return None;
+        }
+        Some((start, end))
     }
 
     /// Returns the total number of capturing groups.
@@ -1262,6 +1259,7 @@ mod tests {
         let text2 = caps.get(2).map_or(&b""[..], |m| m.as_bytes());
         assert_eq!(text1, &b"123"[..]);
         assert_eq!(text2, &b""[..]);
+        assert_eq!(caps.get(usize::MAX), None);
     }
 
     #[test]
@@ -1369,5 +1367,16 @@ mod tests {
             .unwrap();
         let matched = re.find(hay.as_bytes()).unwrap().unwrap();
         assert_eq!(matched.as_bytes(), "😀👍🏼🎉".as_bytes());
+    }
+
+    // See: https://github.com/BurntSushi/rust-pcre2/issues/50
+    #[test]
+    fn capture_get_does_not_panic() {
+        let re = Regex::new("").unwrap();
+        let caps = re.captures(b"abc").unwrap().unwrap();
+        assert_eq!(Some((0, 0)), caps.get(0).map(|m| (m.start(), m.end())));
+        assert_eq!(None, caps.get(1));
+        assert_eq!(None, caps.get(usize::MAX - 1));
+        assert_eq!(None, caps.get(usize::MAX));
     }
 }
