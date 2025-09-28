@@ -6,7 +6,8 @@ use std::{
 
 use pcre2_sys::{
     PCRE2_CASELESS, PCRE2_DOTALL, PCRE2_EXTENDED, PCRE2_MATCH_INVALID_UTF,
-    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_UCP, PCRE2_UNSET, PCRE2_UTF,
+    PCRE2_MULTILINE, PCRE2_NEWLINE_ANYCRLF, PCRE2_NOTEMPTY_ATSTART, PCRE2_UCP,
+    PCRE2_UNSET, PCRE2_UTF,
 };
 
 use crate::{
@@ -350,6 +351,14 @@ impl RegexBuilder {
     }
 }
 
+/// Options that apply to a "find" operation.
+#[derive(Clone, Copy, Default)]
+struct FindOptions {
+    /// Ignore an empty match if it occurs at the start position
+    /// (PCRE2_NOTEMPTY_ATSTART).
+    notempty_atstart: bool,
+}
+
 /// A compiled PCRE2 regular expression.
 ///
 /// This regex is safe to use from multiple threads simultaneously. For top
@@ -631,8 +640,12 @@ impl Regex {
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
         let mut match_data = self.match_data();
-        let res =
-            self.find_at_with_match_data(&mut match_data, subject, start);
+        let res = self.find_at_with_match_data(
+            &mut match_data,
+            subject,
+            start,
+            FindOptions::default(),
+        );
         PoolGuard::put(match_data);
         res
     }
@@ -644,9 +657,10 @@ impl Regex {
     #[inline(always)]
     fn find_at_with_match_data<'s>(
         &self,
-        match_data: &mut MatchDataPoolGuard<'_>,
+        match_data: &mut MatchData,
         subject: &'s [u8],
         start: usize,
+        find_options: FindOptions,
     ) -> Result<Option<Match<'s>>, Error> {
         assert!(
             start <= subject.len(),
@@ -655,7 +669,10 @@ impl Regex {
             subject.len()
         );
 
-        let options = 0;
+        let mut options = 0;
+        if find_options.notempty_atstart {
+            options |= PCRE2_NOTEMPTY_ATSTART;
+        }
         // SAFETY: We don't use any dangerous PCRE2 options.
         if unsafe { !match_data.find(&self.code, subject, start, options)? } {
             return Ok(None);
@@ -695,21 +712,12 @@ impl Regex {
         subject: &'s [u8],
         start: usize,
     ) -> Result<Option<Match<'s>>, Error> {
-        assert!(
-            start <= subject.len(),
-            "start ({}) must be <= subject.len() ({})",
+        self.find_at_with_match_data(
+            &mut locs.data,
+            subject,
             start,
-            subject.len()
-        );
-
-        let options = 0;
-        // SAFETY: We don't use any dangerous PCRE2 options.
-        if unsafe { !locs.data.find(&self.code, subject, start, options)? } {
-            return Ok(None);
-        }
-        let ovector = locs.data.ovector();
-        let (s, e) = (ovector[0], ovector[1]);
-        Ok(Some(Match::new(&subject, s, e)))
+            FindOptions::default(),
+        )
     }
 }
 
@@ -1005,29 +1013,24 @@ impl<'r, 's> Iterator for Matches<'r, 's> {
         if self.last_end > self.subject.len() {
             return None;
         }
+        let mut options = FindOptions::default();
+        if self.last_match.is_some() {
+            // Don't accept empty matches immediately following a match.
+            // Just move on to the next match.
+            options.notempty_atstart = true;
+        }
         let res = self.re.find_at_with_match_data(
             &mut self.match_data,
             self.subject,
             self.last_end,
+            options,
         );
         let m = match res {
             Err(err) => return Some(Err(err)),
             Ok(None) => return None,
             Ok(Some(m)) => m,
         };
-        if m.start() == m.end() {
-            // This is an empty match. To ensure we make progress, start
-            // the next search at the smallest possible starting position
-            // of the next match following this one.
-            self.last_end = m.end() + 1;
-            // Don't accept empty matches immediately following a match.
-            // Just move on to the next match.
-            if Some(m.end()) == self.last_match {
-                return self.next();
-            }
-        } else {
-            self.last_end = m.end();
-        }
+        self.last_end = m.end();
         self.last_match = Some(m.end());
         Some(Ok(m))
     }
@@ -1055,26 +1058,24 @@ impl<'r, 's> Iterator for CaptureMatches<'r, 's> {
             return None;
         }
         let mut locs = self.re.capture_locations();
-        let res =
-            self.re.captures_read_at(&mut locs, self.subject, self.last_end);
+        let mut options = FindOptions::default();
+        if self.last_match.is_some() {
+            // Don't accept empty matches immediately following a match.
+            // Just move on to the next match.
+            options.notempty_atstart = true;
+        }
+        let res = self.re.find_at_with_match_data(
+            &mut locs.data,
+            self.subject,
+            self.last_end,
+            options,
+        );
         let m = match res {
             Err(err) => return Some(Err(err)),
             Ok(None) => return None,
             Ok(Some(m)) => m,
         };
-        if m.start() == m.end() {
-            // This is an empty match. To ensure we make progress, start
-            // the next search at the smallest possible starting position
-            // of the next match following this one.
-            self.last_end = m.end() + 1;
-            // Don't accept empty matches immediately following a match.
-            // Just move on to the next match.
-            if Some(m.end()) == self.last_match {
-                return self.next();
-            }
-        } else {
-            self.last_end = m.end();
-        }
+        self.last_end = m.end();
         self.last_match = Some(m.end());
         Some(Ok(Captures {
             subject: self.subject,
@@ -1286,6 +1287,70 @@ mod tests {
             cap_iter_tuples(&re, b"\na\n\n"),
             vec![(0, 0), (1, 1), (3, 3),]
         );
+    }
+
+    #[test]
+    fn iter_empty_mixed() {
+        let re = Regex::new(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (1, 1), (2, 4), (4, 6), (7, 7), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (1, 1), (2, 4), (4, 6), (7, 7), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            find_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (3, 3), (4, 6)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (3, 3), (4, 6)]
+        );
+    }
+
+    #[test]
+    fn iter_empty_mixed_utf() {
+        let re = RegexBuilder::new().utf(true).build(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert!(re.find_iter(b"xy\x80\x80xy").next().unwrap().is_err());
+        assert!(re.captures_iter(b"xy\x80\x80xy").next().unwrap().is_err());
+    }
+
+    #[test]
+    fn iter_empty_mixed_ucp() {
+        let re = RegexBuilder::new().ucp(true).build(r"x*y*").unwrap();
+        assert_eq!(
+            find_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b("ÁxyxyÁA")),
+            vec![(0, 0), (2, 4), (4, 6), (8, 8), (9, 9)]
+        );
+        assert_eq!(
+            find_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (4, 6)]
+        );
+        assert_eq!(
+            cap_iter_tuples(&re, b"xy\x80\x80xy"),
+            vec![(0, 2), (4, 6)]
+        );
+    }
+
+    #[test]
+    fn iter_lookbehind_ucp() {
+        let re = RegexBuilder::new().ucp(true).build(r"(?<=á)").unwrap();
+        assert_eq!(find_iter_tuples(&re, b("áá")), vec![(2, 2), (4, 4)]);
+        assert_eq!(cap_iter_tuples(&re, b("áá")), vec![(2, 2), (4, 4)]);
     }
 
     #[test]
